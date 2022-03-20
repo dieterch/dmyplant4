@@ -1,0 +1,9 @@
+# These requirements are for running tests, the library itself only needs a
+# subset, see setup.py for that list
+
+arrow>=1.0.3
+matplotli>=3.2.2
+numpy>=1.18.5
+pandas>=1.0.5
+requests>=2.22.0
+scipy>=1.5.2
