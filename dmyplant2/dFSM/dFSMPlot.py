@@ -9,22 +9,24 @@ from .dFSM import filterFSM
 from .dFSMResults import disp_alarms, disp_warnings, detect_edge_right, detect_edge_left
 import warnings
 warnings.simplefilter(action='ignore', category=UserWarning)
-  
+
+def FSM_splot(fsm,startversuch, data, dset, figsize=(16,10)):
+    von_dt=pd.to_datetime(startversuch['starttime']); von=int(von_dt.timestamp())
+    bis_dt=pd.to_datetime(startversuch['endtime']); bis=int(bis_dt.timestamp())
+
+    ftitle = f"{fsm._e} ----- Start {startversuch['no']} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
+    print(f"von: {von_dt.strftime('%d.%m.%Y %H:%M:%S')} bis: {bis_dt.strftime('%d.%m.%Y %H:%M:%S')}")
+
+    fig = dbokeh_chart(data, dset, title=ftitle, grid=False, figsize=figsize, style='line', line_width=0)
+    return fig
+
 def FSMPlot_Start(fsm,startversuch, data, vset, dset, figsize=(16,10)):
     von_dt=pd.to_datetime(startversuch['starttime']); von=int(von_dt.timestamp())
     bis_dt=pd.to_datetime(startversuch['endtime']); bis=int(bis_dt.timestamp())
 
     ftitle = f"{fsm._e} ----- Start {startversuch['no']} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
-    #print(ftitle, end=' ')
     print(f"von: {von_dt.strftime('%d.%m.%Y %H:%M:%S')} bis: {bis_dt.strftime('%d.%m.%Y %H:%M:%S')}")
 
-    #vset = fsm._data_spec + ['Hyd_PressCrankCase','Hyd_PressOilDif','Hyd_PressOil','Hyd_TempOil']
-
-    #data = fsm.get_cycle_data2(startversuch, max_length=None, min_length=None, cycletime=1, silent=False, p_data=vset)
-    #fsm._debug(int(startversuch['starttime'].timestamp() * 1000),int(startversuch['endtime'].timestamp() * 1000),data,'data')
-
-
-    #fsm.disp_result(startversuch)
     al_lines = disp_alarms(startversuch)
     w_lines = disp_warnings(startversuch)
     

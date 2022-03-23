@@ -9,6 +9,7 @@ from .dFSMResults import (
     warnings_pareto
 )
 from .dFSMPlot import (
+    FSM_splot,
     FSMPlot_Start, 
     get_cycle_data, 
     get_cycle_data2, 

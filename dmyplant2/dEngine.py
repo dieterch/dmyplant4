@@ -517,6 +517,21 @@ class Engine:
         except:
             raise
 
+    def assess_dataItems(self, testset):
+        result = []
+        for item in testset:
+            try:
+                testdata = self.hist_data(
+                    itemIds= self.get_dataItems([item]), 
+                    p_from=arrow.get(self.valstart_ts), 
+                    p_to=arrow.get(self.valstart_ts), 
+                    timeCycle=30,
+                    forceReload=False)
+                result.append({item:True})
+            except ValueError as err:
+                result.append({item:False})
+        return result
+
     def historical_dataItem(self, itemId, timestamp):
         """
         Get historical dataItem

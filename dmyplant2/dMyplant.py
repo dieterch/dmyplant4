@@ -132,7 +132,15 @@ class MyPlant:
     def get_dataitems(cls):
         if cls._dataitems.empty:
             cls.load_dataitems()
-        return cls._dataitems 
+        return cls._dataitems
+
+    @classmethod
+    def lookup_dataitems(cls,lookup, exclude=''):
+        di = cls.get_dataitems()
+        if exclude != '':
+            return di.loc[(di.name.str.contains(lookup, case=False) & ~(di.name.str.contains(exclude, case=False)))].reset_index(drop='index')
+        else:
+            return di.loc[di.name.str.contains(lookup, case=False)].reset_index(drop='index')
 
     @ classmethod
     def load_dataitems_csv(cls, filename):

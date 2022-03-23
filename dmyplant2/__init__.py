@@ -25,6 +25,7 @@ from dmyplant2.dFSM import (
     FSM, 
     msgFSM, 
     filterFSM, 
+    FSM_splot,
     FSMPlot_Start,
     get_cycle_data, 
     get_cycle_data2, 
