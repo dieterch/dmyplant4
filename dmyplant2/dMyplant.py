@@ -367,10 +367,10 @@ class MyPlant:
         rows_per_request = maxdatapoints // len(itemIds)
         try:
             rows_total = int(p_to.timestamp() - p_from.timestamp()) // timeCycle
-        except:
+        except ValueError as err:
+            print(err)
             print('Please check arrow version! Make sure you have version 1.0.3 or higher installed!')
-            print('Update arrow by writing in command prompt: pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org arrow==1.0.3')
-    
+            print('Update arrow by writing in command prompt: pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org arrow==1.0.3')    
         if not silent:
             pbar = tqdm(total=rows_total, ncols=80, mininterval=1, unit=' datarows', desc="Load Data")
 
