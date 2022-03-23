@@ -315,6 +315,25 @@ class Engine:
             ret.update({ res.get('id',None) : [res.get('name',None),res.get('unit', '')] })
         return ret
 
+    def assess_dataItems(self, testset, p_ts):
+        result = []
+        for item in testset:
+            try:
+                testdata = self._mp.hist_data(
+                    self.id,
+                    itemIds= self.get_dataItems([item]), 
+                    p_from=p_ts, 
+                    p_to=p_ts.shift(seconds=1), 
+                    timeCycle=1,
+                    silent=True)
+                result.append({
+                    item:True, 
+                    'value': testdata[item].iloc[0] if not testdata.empty else -9999,
+                    })
+            except ValueError as err:
+                result.append({item:False})
+        return result
+
     @property
     def time_since_last_server_contact(self):
         """get time since last Server contact
@@ -517,17 +536,21 @@ class Engine:
         except:
             raise
 
-    def assess_dataItems(self, testset):
+    def assess_dataItems(self, testset, p_ts):
         result = []
         for item in testset:
             try:
-                testdata = self.hist_data(
+                testdata = self._mp.hist_data(
+                    self.id,
                     itemIds= self.get_dataItems([item]), 
-                    p_from=arrow.get(self.valstart_ts), 
-                    p_to=arrow.get(self.valstart_ts), 
-                    timeCycle=30,
-                    forceReload=False)
-                result.append({item:True})
+                    p_from=p_ts, 
+                    p_to=p_ts.shift(seconds=1), 
+                    timeCycle=1,
+                    silent=True)
+                result.append({
+                    item:True, 
+                    'value': testdata[item].iloc[0] if not testdata.empty else -9999,
+                    })
             except ValueError as err:
                 result.append({item:False})
         return result

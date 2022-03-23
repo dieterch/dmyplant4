@@ -255,7 +255,8 @@ def bokeh_chart(source, pltcfg, x_ax='datetime', x_ax_unit=None, title=None, gri
             else: 
                 unit.append(dataitems.loc[dataitems.myPlantName==col].iat[0,2])
 
-            if unit[-1] is np.nan: unit[-1]=''
+            if pd.isna(unit[-1]): 
+                unit[-1]=''
 
             if 'color' in y:
                 if isinstance(y['color'], list):

@@ -335,18 +335,21 @@ class MyPlant:
 
     def _history_batchdata(self, id, itemIds, lp_from, lp_to, timeCycle=3600):
         # make sure itemids have the format { int: [str,str], int: [str,str], ...}
-        itemIds = { int(k):v for (k,v) in itemIds.items() }
+        itemIds = { int(k):v for (k,v) in itemIds.items() if k}
         # comma separated string of DataItemID's
         IDS = ','.join([str(s) for s in itemIds.keys()])
         ldata = self.fetchdata(
             url=fr"/asset/{id}/history/batchdata?from={lp_from}&to={lp_to}&timeCycle={timeCycle}&assetType=J-Engine&includeMinMax=false&forceDownSampling=false&dataItemIds={IDS}")
         # restructure data to dict
-        ds = dict()
-        ds['labels'] = ['time'] + [itemIds[x][0] for x in ldata['columns'][1]]
-        ds['data'] = [[r[0]] + [rr[0] for rr in r[1]] for r in ldata['data']]
-        # import data to Pandas DataFrame and return result
-        df = pd.DataFrame(ds['data'], columns=ds['labels'])
-        return df
+        if ldata:
+            ds = dict()
+            ds['labels'] = ['time'] + [itemIds[x][0] for x in ldata['columns'][1]]
+            ds['data'] = [[r[0]] + [rr[0] for rr in r[1]] for r in ldata['data']]
+            # import data to Pandas DataFrame and return result
+            df = pd.DataFrame(ds['data'], columns=ds['labels'])
+            return df
+        else:
+            return pd.DataFrame([])
 
     def hist_data(self, id, itemIds, p_from, p_to, timeCycle=3600, silent=False):
         """
@@ -397,8 +400,10 @@ class MyPlant:
         
         if not silent:
             pbar.close()
-        # Addtional Datetime column calculated from timestamp
-        df['datetime'] = pd.to_datetime(df['time'] * 1000000)
+        
+        if not df.empty:
+            # Addtional Datetime column calculated from timestamp
+            df['datetime'] = pd.to_datetime(df['time'] * 1000000)
         return df
 
     def stitch_df(self, **dataframes):
