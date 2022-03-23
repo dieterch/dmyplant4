@@ -1062,7 +1062,7 @@ def chart(d, ys, x='datetime', title=None, grid=True, legend=True, notebook=True
             col = y['col'][0]
             cols.append(col)
             if 'color' in y:
-                color = y['color']
+                    color = y['color']
             else:
                 color = next(cycle(colors))['color']
             lines.append(ax.plot(d[x], d[col],
@@ -1073,9 +1073,12 @@ def chart(d, ys, x='datetime', title=None, grid=True, legend=True, notebook=True
             ax.tick_params(axis='y', colors=color)
             ax.spines['right'].set_color(color)
         else:
-            for col in y['col']:
+            for ii, col in enumerate(y['col']):
                 if 'color' in y:
-                    color = y['color']
+                    if isinstance(y['color'], list):
+                        color = y['color'][ii]
+                    else:
+                        color = y['color']
                 else:
                     color = next(cycle(colors))['color']
                 lines.append(
