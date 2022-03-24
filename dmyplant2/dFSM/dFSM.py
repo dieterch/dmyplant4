@@ -46,10 +46,10 @@ currentstate_start: {self.currentstate_start}
     def __str__(self):
         return  f"{'*' if self.statechange else '':2}|"+ \
                 f"{self.startno:04}| " + \
-                f"{self.laststate_start.strftime('%d.%m %H:%M:%S')} " + \
-                f"{self.laststate:18}| " + \
-                f"{self.currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
-                f"{self.currentstate:18}| " + \
+                f"LST {self.laststate_start.strftime('%d.%m %H:%M:%S')} " + \
+                f"LS  {self.laststate:18}| " + \
+                f"CSS {self.currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
+                f"CS  {self.currentstate:18}| " + \
                 f"{self.in_operation:4}| " + \
                 f"{self.service_selector:6}| " + \
                 f"{self.msg['severity']} {pd.to_datetime(int(self.msg['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} {self.msg['name']} {self.msg['message']}"
