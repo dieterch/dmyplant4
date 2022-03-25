@@ -128,7 +128,7 @@ class LoadrampState(State):
                 self._full_load_timestamp = None
 
                 # and deliver both events back to the main loop
-                return [vector1,vector2]
+                return [vector2,vector1]
         
         # just pass through state vectors in all other cases.
         return [vector]
