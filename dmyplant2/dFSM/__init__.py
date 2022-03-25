@@ -10,6 +10,7 @@ from .dFSMResults import (
 )
 from .dFSMPlot import (
     FSM_splot,
+    FSM_add_Notations,
     FSMPlot_Start, 
     get_cycle_data, 
     get_cycle_data2, 

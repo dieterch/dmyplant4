@@ -32,7 +32,7 @@ from bokeh.models import ColumnDataSource, Div, Span
 from dmyplant2.dReliability import demonstrated_reliability_sr
 import dmyplant2
 
-def v(mp, dset):
+def cvset(mp, dset):
     vset = [d for col in [rec['col'] for rec in dset] for d in col]
     di = mp.get_dataitems()
     vset = [d for d in vset if not di.loc[di.name.str.fullmatch(d)].empty]

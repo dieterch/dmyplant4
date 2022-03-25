@@ -260,6 +260,7 @@ class MyPlant:
                                                   data=json.dumps(body), headers=headers)
                     if response.status_code == 200:
                         logging.debug(f'login {self._name} successful.')
+                        self.r = response.json()
                         break
                     else:
                         logging.error(
@@ -287,6 +288,14 @@ class MyPlant:
         self.login()
         logging.debug(f'url: {url}')
         response = self._session.get(burl + url)
+
+        # headers = {'x-seshat-token': self.r['token']}
+        # r = requests.get(burl + url, headers=headers, params=None)
+        # if r.status_code != 200:
+        #     print('{}: {}'.format(r.status_code, r.text))
+        #     raise MyPlantClientException(r.text)
+        # return r
+
         if response.status_code == 200:
             logging.debug(f'fetchdata: download successful')
             res = response.json()
@@ -568,6 +577,7 @@ if __name__ == "__main__":
     t0 = time.time()
     dmyplant2.cred()
     mp = dmyplant2.MyPlant(0)
+    mp.login()
     #dmyplant2.Engine._list_cached_validations()
     t1 = time.time()
     e = dmyplant2.Engine.from_sn(mp, '1486144')

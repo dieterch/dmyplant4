@@ -20,12 +20,13 @@ from dmyplant2.dPlot import (
     bokeh_chart,
     dbokeh_chart,
     bokeh_show,
-    v)
+    cvset)
 from dmyplant2.dFSM import (
     FSM, 
     msgFSM, 
     filterFSM, 
     FSM_splot,
+    FSM_add_Notations,
     FSMPlot_Start,
     get_cycle_data, 
     get_cycle_data2, 
