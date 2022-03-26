@@ -92,16 +92,17 @@ class LoadrampState(State):
         super().__init__(statename, transferfun_list)
 
     def trigger_on_vector(self, vector):
-        #print(vector)
+    
         vectorlist = super().trigger_on_vector(vector)
         vector = vectorlist[0]
 
-        # one of the triggerfunctions has already changed state. 
+        # one of the triggerfunctions has already changed state, can occor, when some event
+        # happens within the loadramp phase. 
         if vector.statechange: 
             self._full_load_timestamp = None
             return [vector]
 
-        # calculate the end of ramp time.
+        # calculate the end of ramp time if it isnt defined.
         if self._full_load_timestamp == None:
             self._full_load_timestamp = int((vector.currentstate_start.timestamp() + self._default_ramp_duration) * 1e3)
 
@@ -110,25 +111,25 @@ class LoadrampState(State):
             self._full_load_timestamp = vector.msg['timestamp']
 
         # trigger on the firstmessage after the calcalulated event time, switch to 'targetoperation'
-        # insert a virtual message before the received message exactly at _full_load_timestamp
+        # insert a virtual message exactly at _full_load_timestamp
         if self._full_load_timestamp != None and int(vector.msg['timestamp']) >= self._full_load_timestamp:
                 
                 # change the state, because we do the statechange in vector 1 
-                vector2 = self.update_vector_on_statechange(vector)
-                vector2.currentstate = 'targetoperation'
+                vector1 = self.update_vector_on_statechange(vector)
+                vector1.currentstate = 'targetoperation'
                 
                 # copy state vector, fill out the relevant data and trigger to tagetopeartion
-                vector1 = copy.deepcopy(vector2)
-                vector1.msg = {'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600}
-                vector1.statechange = True
-                vector1.currentstate = 'targetoperation'
-                vector1.currentstate_start = pd.to_datetime(self._full_load_timestamp * 1e6)
+                vector2 = copy.deepcopy(vector1)
+                vector2.msg = {'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600}
+                vector2.statechange = True
+                vector2.currentstate = 'targetoperation'
+                vector2.currentstate_start = pd.to_datetime(self._full_load_timestamp * 1e6)
 
                 # Reset the State for the next event.
                 self._full_load_timestamp = None
 
                 # and deliver both events back to the main loop
-                return [vector2,vector1]
+                return [vector1,vector2]
         
         # just pass through state vectors in all other cases.
         return [vector]

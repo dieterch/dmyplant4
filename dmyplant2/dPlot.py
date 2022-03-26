@@ -301,7 +301,7 @@ def bokeh_chart(source, pltcfg, x_ax='datetime', x_ax_unit=None, title=None, gri
         if len(y['col']) > 1:
             color = 'black'
         p.add_layout(LinearAxis(y_range_name=str(i),
-                            axis_label=llabel, axis_label_text_color=color), 'left')
+                            axis_label=llabel, axis_label_text_color=color), 'right')
 
     p.add_tools(HoverTool(tooltips=tooltips, 
                         formatters={f'@datetime': 'datetime'}, # use 'datetime' formatter for '@date' field    

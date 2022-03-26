@@ -11,7 +11,10 @@ from .dFSMResults import (
 from .dFSMPlot import (
     FSM_splot,
     FSM_add_Notations,
-    FSMPlot_Start, 
+    FSM_add_Alarms,
+    FSM_add_Warnings,
+    FSMPlot_Start,
+    load_data, 
     get_cycle_data, 
     get_cycle_data2, 
     states_lines
