@@ -201,7 +201,8 @@ class Engine:
             cachexpired = self._cache_expired()['bool']
             checkpickle = self._check_for_pickling_error()
             if cachexpired or not checkpickle:
-                local_asset = self._mp._asset_data(self._sn)
+                #local_asset = self._mp._asset_data(self._sn)
+                local_asset = self._mp._asset_data_token(self._sn)
                 #logging.debug(f"{temp.eng['Validation Engine']}, Engine Data fetched from Myplant")
                 logging.debug(f"{name}, Engine Data fetched from Myplant")
                 #local_asset['validation'] = temp.eng
