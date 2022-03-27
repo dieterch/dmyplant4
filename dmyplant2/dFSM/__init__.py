@@ -1,4 +1,8 @@
-from .dFSM import FSM, msgFSM, filterFSM
+from .dFSM import (
+    FSM, 
+    msgFSM, 
+    filterFSM
+)
 from .dFSMResults import (
     detect_edge_right, 
     detect_edge_left,

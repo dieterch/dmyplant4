@@ -212,7 +212,7 @@ class FSM:
 
 
 class filterFSM:
-    run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','maxload','ramprate','targetoperation','rampdown','coolrun','runout','count_alarms', 'count_warnings']
+    run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','targetoperation','rampdown','coolrun','runout','count_alarms', 'count_warnings']
     vertical_lines_times = ['startpreparation','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
 
 class msgFSM:
@@ -358,6 +358,11 @@ class msgFSM:
                 'msg': self.svec.msg
                 })
 
+    def _harvest_timings(self, sv, phases):
+        durations = { ph:pd.Timedelta(sv['timing'][ph][-1]['end'] - sv['timing'][ph][-1]['start']).total_seconds() for ph in phases}
+        durations['cumstarttime'] = sum([v for k,v in durations.items() if k in ['startpreparation','starter','speedup','idle','synchronize','loadramp']])
+        self.results['starts'][-1].update(durations)
+
     def _fsm_Operating_Cycle(self):
         if self.svec.statechange:
             if self.svec.currentstate == 'startpreparation':
@@ -386,7 +391,7 @@ class msgFSM:
                     'timing': {},
                     'alarms': [],
                     'warnings': [],
-                    'maxload': np.nan,
+                    'targetload': np.nan,
                     'ramprate': np.nan
                 })
                 self.results['starts_counter'] += 1 # index for next start
@@ -412,15 +417,18 @@ class msgFSM:
                     # some sense checks, mostly for commissioning or Test cycles 
                     if 'targetoperation' in phases:
                         tlr = sv['timing']['targetoperation']
-                        tlr = [{'start':tlr[0]['start'], 'end':tlr[-1]['end']}]
-                        sv['timing']['targetoperation_org'] = sv['timing']['targetoperation']
-                        sv['timing']['targetoperation'] = tlr
-                    # durations = { ph:pd.Timedelta(self.results['starts'][-1]['timing']['end_'+ph] - self.results['starts'][-1]['timing']['start_'+ph]).total_seconds() for ph in phases}
-                    durations = { ph:pd.Timedelta(sv['timing'][ph][-1]['end'] - sv['timing'][ph][-1]['start']).total_seconds() for ph in phases}
-                    durations['cumstarttime'] = sum([v for k,v in durations.items() if k in ['startpreparation','starter','speedup','idle','synchronize','loadramp']])
-                    self.results['starts'][-1].update(durations)
+                        tlr = [{'start':tlr[0]['start'], 'end':tlr[-1]['end']}] # just use the first start and the last end time. (mulitple rampdown cycles)
+                        sv['timing']['targetoperation_org'] = sv['timing']['targetoperation'] # back up original data
+                        sv['timing']['targetoperation'] = tlr # and replace with modified data
+
+
+                    self._harvest_timings(sv, phases)
+                    # durations = { ph:pd.Timedelta(sv['timing'][ph][-1]['end'] - sv['timing'][ph][-1]['start']).total_seconds() for ph in phases}
+                    # durations['cumstarttime'] = sum([v for k,v in durations.items() if k in ['startpreparation','starter','speedup','idle','synchronize','loadramp']])
+                    # self.results['starts'][-1].update(durations)
+ 
                     if 'targetoperation' in self.results['starts'][-1]:
-                        #successful if the targetoperation run was longer than specified
+                        #successful if the targetoperation run was longer than specified minimal runtime
                         self.results['starts'][-1]['success'] = (self.results['starts'][-1]['targetoperation'] > self._successtime)
                     self.results['starts'][-1]['count_alarms'] = len(self.results['starts'][-1]['alarms'])
                     self.results['starts'][-1]['count_warnings'] = len(self.results['starts'][-1]['warnings'])
@@ -480,12 +488,56 @@ class msgFSM:
 
 
 
+##########################################################
+def loadramp_edge_detect(startversuch):
+    if 'loadramp' in startversuch['timing']:
+        s = startversuch['timing']['loadramp'][-1]['start'].timestamp()
+        e = startversuch['timing']['loadramp'][-1]['end'].timestamp()
+        e2 = s + periodfactor * (e-s)
+        data = load_data(fsm, cycletime=1, tts_from=s, tts_to=e2, silent=True, p_data=['Power_PowerAct'], p_forceReload=False)
+        if not data.empty:
+            data = data[(data['time'] >= int(s * 1000)) & (data['time'] <= int(e2 * 1000))]
+            #s,e,e2, data.iloc[0]['time'], data.iloc[-1]['time'],
+            x0 = data.iloc[0]['datetime']
+            y0 = 0.0
+            x1 = data.iloc[-1]['datetime']
+            y1 = data.iloc[-1]['Power_PowerAct'] * helplinefactor
+            data['helpline'] = data['Power_PowerAct'] + (x0 - data['datetime'])* (y1-y0)/(x1-x0) + y0
 
+            edge = data.loc[data['helpline'].idxmax()]
+            xmax = edge['datetime']
+            ymax = data.at[edge.name,'Power_PowerAct']
+        else:
+            return pd.DataFrame([]), startversuch['endtime'], 0.0, 0.0, 0.0
+    else:
+        return pd.DataFrame([]), startversuch['endtime'], 0.0, 0.0, 0.0
+    duration = xmax.timestamp()-s
+    ramprate = ymax / duration
+    return data, xmax, ymax, duration, ramprate 
 
-
+    def run2(self, rdb):
+        ratedload = self._e['Power_PowerNominal']
+        #for i, startversuch in rdb.iterrows() : 
+        for i, startversuch in tqdm(rdb.iterrows(), total=rdb.shape[0], ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
+            sno = startversuch['no']
+            #if startversuch['run2'] == False:
+            if not self.results['starts'][sno]['run2']:
+                self.results['starts'][sno]['run2'] = True
+                #startversuch['run2'] = True
+                data, xmax, ymax, duration, ramprate = loadramp_edge_detect(startversuch)
+                if not data.empty:
+                    # update timings accordingly
+                    self.results['starts'][sno]['timing']['loadramp'][0]['end'] = xmax
+                    if 'targetoperation' in self.results['starts'][sno]['timing']:
+                        self.results['starts'][sno]['timing']['targetoperation'][0]['start'] = xmax
+                    self.results['starts'][sno]['targetload'] = ymax
+                    self.results['starts'][sno]['ramprate'] = ramprate / ratedload * 100.0
+                    phases = list(self.results['starts'][sno]['timing'].keys())
+                    self._harvest_timings(self.results['starts'][sno], phases)
+                    #print(f"Start: {startversuch['no']:3d} xmax: {xmax}, ymax: {ymax:6.0f}, duration: {duration:5.1f}, ramprate: {ramprate / ratedload * 100.0:4.2f} %/s")
 
 #********************************************************
-    def dorun2(self, index_list, startversuch):
+    def dorun2_old(self, index_list, startversuch):
                 ii = startversuch['no']
                 index_list.append(ii)
 
@@ -557,12 +609,12 @@ class msgFSM:
                         self.results['starts'][ii]['backup'] = backup
                         self.results['starts'][ii]['run2'] = True
 
-    def run2(self, rda, silent=False):
+    def run2_old(self, rda, silent=False):
         index_list = []
         if silent:
             for n, startversuch in rda.iterrows():
-                self.dorun2(index_list, startversuch)
+                self.dorun2_old(index_list, startversuch)
         else:
             for n, startversuch in tqdm(rda.iterrows(), total=rda.shape[0], ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
-                self.dorun2(index_list, startversuch)
+                self.dorun2_old(index_list, startversuch)
         return pd.DataFrame([self.results['starts'][s] for s in index_list])
