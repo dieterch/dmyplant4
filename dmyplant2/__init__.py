@@ -39,5 +39,6 @@ from dmyplant2.dFSM import (
     alarms_pareto, 
     warnings_pareto,
     states_lines,
+    loadramp_edge_detect,
     detect_edge_right, 
     detect_edge_left)

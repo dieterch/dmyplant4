@@ -486,45 +486,18 @@ class msgFSM:
             self._fsm_collect_alarms()
             self._fsm_Operating_Cycle()
 
-
-
 ##########################################################
-def loadramp_edge_detect(startversuch):
-    if 'loadramp' in startversuch['timing']:
-        s = startversuch['timing']['loadramp'][-1]['start'].timestamp()
-        e = startversuch['timing']['loadramp'][-1]['end'].timestamp()
-        e2 = s + periodfactor * (e-s)
-        data = load_data(fsm, cycletime=1, tts_from=s, tts_to=e2, silent=True, p_data=['Power_PowerAct'], p_forceReload=False)
-        if not data.empty:
-            data = data[(data['time'] >= int(s * 1000)) & (data['time'] <= int(e2 * 1000))]
-            #s,e,e2, data.iloc[0]['time'], data.iloc[-1]['time'],
-            x0 = data.iloc[0]['datetime']
-            y0 = 0.0
-            x1 = data.iloc[-1]['datetime']
-            y1 = data.iloc[-1]['Power_PowerAct'] * helplinefactor
-            data['helpline'] = data['Power_PowerAct'] + (x0 - data['datetime'])* (y1-y0)/(x1-x0) + y0
-
-            edge = data.loc[data['helpline'].idxmax()]
-            xmax = edge['datetime']
-            ymax = data.at[edge.name,'Power_PowerAct']
-        else:
-            return pd.DataFrame([]), startversuch['endtime'], 0.0, 0.0, 0.0
-    else:
-        return pd.DataFrame([]), startversuch['endtime'], 0.0, 0.0, 0.0
-    duration = xmax.timestamp()-s
-    ramprate = ymax / duration
-    return data, xmax, ymax, duration, ramprate 
-
-    def run2(self, rdb):
+    def run2(self):
         ratedload = self._e['Power_PowerNominal']
         #for i, startversuch in rdb.iterrows() : 
-        for i, startversuch in tqdm(rdb.iterrows(), total=rdb.shape[0], ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
+        #for i, startversuch in tqdm(rdb.iterrows(), total=rdb.shape[0], ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
+        for i, startversuch in tqdm(enumerate(self.results['starts']), total=len(self.results['starts']), ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
             sno = startversuch['no']
             #if startversuch['run2'] == False:
             if not self.results['starts'][sno]['run2']:
                 self.results['starts'][sno]['run2'] = True
                 #startversuch['run2'] = True
-                data, xmax, ymax, duration, ramprate = loadramp_edge_detect(startversuch)
+                data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch)
                 if not data.empty:
                     # update timings accordingly
                     self.results['starts'][sno]['timing']['loadramp'][0]['end'] = xmax
