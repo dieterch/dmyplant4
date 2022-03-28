@@ -271,8 +271,9 @@ class msgFSM:
         return pd.DataFrame(self.results['stops'])
 
     def restore(self):
-        with open(self.pfn, 'rb') as handle:
-            self.results = pickle.load(handle)
+        if os.path.exists(self.pfn):
+            with open(self.pfn, 'rb') as handle:
+                self.results = pickle.load(handle)
 
     def store(self):
         self.unstore()
@@ -463,7 +464,7 @@ class msgFSM:
 
     ## FSM Entry Point.
     def run1(self, enforce=False, silent=False):
-        if len(self.results['starts']) == 0 or enforce or not ('run2' in self.results['starts'][0]):
+        if len(self.results['starts']) == 0 or enforce:
             self.init_results()
 
             if silent:

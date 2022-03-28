@@ -5,7 +5,7 @@ import arrow
 
 
 ## data handling
-def _load_data(fsm, engine=None, p_data=None, ts_from=None, ts_to=None, p_timeCycle=None, p_forceReload=False, p_slot=99, silent=False):
+def _load_data(fsm, engine=None, p_data=None, ts_from=None, ts_to=None, p_timeCycle=None, p_forceReload=False, p_slot=99, silent=False, p_suffix=''):
     engine = engine or fsm._e
     if not p_timeCycle:
         p_timeCycle = 30
@@ -20,11 +20,12 @@ def _load_data(fsm, engine=None, p_data=None, ts_from=None, ts_to=None, p_timeCy
         timeCycle=p_timeCycle,
         forceReload=p_forceReload,
         slot=p_slot,
-        silent=silent
+        silent=silent,
+        suffix=p_suffix
     )
 
-def load_data(fsm, cycletime, tts_from=None, tts_to=None, silent=False, p_data=None, p_forceReload=False):
-    data = _load_data(fsm, p_data=p_data, p_timeCycle=cycletime, ts_from=tts_from, ts_to=tts_to, p_slot=tts_from or 9999, silent=silent, p_forceReload=p_forceReload)
+def load_data(fsm, cycletime, tts_from=None, tts_to=None, silent=False, p_data=None, p_forceReload=False, p_suffix = ''):
+    data = _load_data(fsm, p_data=p_data, p_timeCycle=cycletime, ts_from=tts_from, ts_to=tts_to, p_slot=tts_from or 9999, silent=silent, p_forceReload=p_forceReload, p_suffix=p_suffix)
     return data
 
 def get_period_data(fsm, ts0, ts1, cycletime=None, p_data=None):

@@ -41,4 +41,5 @@ from dmyplant2.dFSM import (
     states_lines,
     loadramp_edge_detect,
     detect_edge_right, 
-    detect_edge_left)
+    detect_edge_left,
+    figures)
