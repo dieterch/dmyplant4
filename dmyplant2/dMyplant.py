@@ -304,15 +304,6 @@ class MyPlant:
             logging.error(
                 f"Code: {url}, {response.status_code}, {errortext.get(response.status_code,'no HTTP Error text available.')}")
 
-    def fetchdata_token(self, url):
-        self.login()
-        headers = {'x-seshat-token': self.token}
-        r = requests.get(burl + url, headers=headers, params=None)
-        if r.status_code != 200:
-             print('{}: {}'.format(r.status_code, r.text))
-             raise MyPlantClientException(r.text)
-        if r.status_code == 200:
-            return r.json()
 
     def _asset_data(self, serialNumber):
         """
@@ -327,19 +318,129 @@ class MyPlant:
         """
         return self.fetchdata(url=r"/asset?assetType=J-Engine&serialNumber=" + str(serialNumber))
 
+    # def fetchdata_token(self, url):
+    #     self.login()
+    #     headers = {'x-seshat-token': self.token}
+    #     r = requests.get(burl + url, headers=headers, params=None)
+    #     if r.status_code != 200:
+    #          print('{}: {}'.format(r.status_code, r.text))
+    #          raise MyPlantClientException(r.text)
+    #     if r.status_code == 200:
+    #         return r.json()
 
-    def _asset_data_org(self, serialNumber):
+
+
+    def _request(self, method, endpoint, params=None, json_data=None):
+        self.login()
+        headers = {'x-seshat-token': self.token}
+        request_method = {
+            'get': requests.get,
+            'post': requests.post,
+        }
+        r = request_method[method](
+            burl + '/' + endpoint,
+            headers=headers,
+            params=params,
+            json=json_data,
+            verify=True,
+            proxies=None
+        )
+        if r.status_code != 200:
+            print(f'{r.status_code}: {r.text}')
+            raise MyPlantClientException(r.text)
+        return r
+
+    def _asset_data_graphQL(self, serialNumber):
+        limit = 100000
+        properties = [
+            "Engine Series",
+            "Engine Type",
+            "Engine Version",
+            "Customer Engine Number",
+            "Engine ID",
+            "Design Number",
+            "Gas Type",
+            "Commissioning Date",
+            "Contract.Service Contract Type",
+        ]
+        dataItems = [
+            "OperationalCondition",
+            "Count_OpHour",
+            "Count_Start",
+            "Power_PowerNominal",
+            "RMD_ListBuffMAvgOilConsume_OilConsumption",
+        ]
+        filters = [
+            '{name:"modelId", op:EQUALS, value:"23", comb:AND}',
+            f'{{name:"serialNumber", op:EQUALS, value:"{str(serialNumber)}", comb:AND}}'            
+        ]
+        r = self._request_asset_graphql(limit=limit, properties=properties, dataItems=dataItems, filters=filters) 
+        return r['data']['assets']['items'][0]
+
+    def _request_asset_graphql(self, limit=100000, properties=[], dataItems=[], filters=[]):
         """
-        Returns an Asset based on its id with all details
-        including properties and DataItems.
-
+        Returns specific Asset Data
         Parameters:
+
         Name	    type    Description
         sn          int     IB ItemNumber Engine
-        ----------------------------------------------
-        url: /asset?assetType=J-Engine&serialNumber=sn
         """
-        return self.fetchdata_org(url=r"/asset?assetType=J-Engine&serialNumber=" + str(serialNumber))
+        graphQL = """
+        {
+            assets(filter: { 
+                limit: %s, 
+                filters: [
+                    %s
+                ] }) {
+                items {
+                    id
+                    serialNumber
+                    modelId
+                    model
+                    site {
+                        id
+                        name
+                        country
+                    }
+                    customer {
+                        id
+                        name
+                    }
+                    status {
+                        lastContactDate
+                        lastDataFlowDate
+                    }
+                    properties(
+                        names: [
+                            %s
+                        ]
+                    ) {
+                        id
+                        name
+                        value
+                    }
+                    dataItems(
+                        query: [
+                            %s
+                        ]
+                    ) {
+                        id
+                        name
+                        value
+                        unit
+                        timestamp
+                    }
+                }
+            }
+        }
+        """ % (
+            limit,
+            ','.join(filters),
+            ','.join([f'"{i}"' for i in properties]),
+            ','.join([f'"{i}"' for i in dataItems]),            
+        )
+        r = self._request('post', endpoint='graphql', json_data={'query': graphQL})
+        return r.json()
 
     def historical_dataItem(self, id, itemId, timestamp):
         """

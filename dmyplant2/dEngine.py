@@ -210,7 +210,7 @@ class Engine:
             if cachexpired or not checkpickle:
                 
                 local_asset = self._mp._asset_data(self._sn)
-                #local_asset = self._mp._asset_data_org(self._sn)
+                #local_asset = self._mp._asset_data_graphQL(self._sn)
 
                 #logging.debug(f"{temp.eng['Validation Engine']}, Engine Data fetched from Myplant")
                 logging.debug(f"{name}, Engine Data fetched from Myplant")
