@@ -82,7 +82,8 @@ def have_internet():
         conn.close()
         return False
 
-token="eyJhbGciOiJSUzI1NiIsImtpZCI6InNlc2hhdCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJteVBsYW50IiwiZXhwIjoxNjQ4NDI3MTc3LCJpYXQiOjE2NDg0MDkxNzcsImlzcyI6Imh0dHBzOi8vYXBpLm15cGxhbnQuaW8vYXBpL29hdXRoIiwibXlfcGxhbnQiOnsiZW1haWwiOiJkaWV0ZXIuY2h2YXRhbEBpbm5pby5jb20iLCJncm91cHMiOlsiQXNzZXRNYW5hZ2VtZW50IiwiRGlhZ25vc3RpY1dvcmtiZW5jaCIsIkZsZWV0T3ZlcnZpZXciLCJSZW1vdGVDb25uZWN0aW9uIiwiQW5hbHl0aWNzIiwiT2lsIiwiUmVsaWFiaWxpdHkiLCJDdXN0b21Ob3RpZmljYXRpb25zIiwiQ3VzdG9tS1BJIiwiU2l0ZXMiLCJTZXJ2aWNlLU5vdyIsIkFkdmFuY2VkUmVtb3RlQWNjZXNzIiwiRmllbGRTZXJ2aWNlTWFudWFscyIsInNlcyIsInNlcy1vZmZsaW5lIiwiUXVhbGl0eVRvb2wtQmFzaWMiLCJJbnZlc3RpZ2F0aW9uUmVwb3J0cyIsIlN0YXRlX01hY2hpbmVfdjItVmlzaWJpbGl0eSIsIkNvb2xhbnQiLCJGbGVldFBhcmFtZXRlck1vbml0b3JpbmctRGFzaGJvYXJkLUFjY2VzcyIsIk9wZXJhdGlvbmFsUHJvZmlsZS1BY2Nlc3MiLCJQYXJ0cy1DYXRhbG9nIiwiUE1ULVBhcmFtZXRlck93bmVyIiwiSW50ZXJuYWwiXSwiaXNTc28iOmZhbHNlLCJtYXR1cml0eUxldmVsIjoyMDAsIm1mYUNvbmZpcm1lZCI6ZmFsc2UsIm9yYWNsZUlkIjozMzc3LCJvcmdhbml6YXRpb25JZCI6MSwicGFyZW50T3JnSWQiOjEsInNzb1VzZXIiOiJkaWV0ZXIuY2h2YXRhbEBpbm5pby5jb20iLCJ1c2VybmFtZSI6IjEwNTAyNjAxMCJ9LCJzdWIiOiIxMDUwMjYwMTAifQ.slsB1vV6swVTlQe_WVD6W1_6QtfIctaxfgA9spZpjlvwUe4I7QMFHwPMjK3zUl5PjB-s1v1df_-8YqRLXyET4KKy3SvoW9jp_m56zWIF1F2OrQBo19K0AzrFJV8pyQZrNxzI74luc2VFxMNJq0hMkrJfrcnx-eewS9bWLAj4CB_0ejCN2gnqatvvvFetSSWbAhr2sNh8a7uyKNV2saQRRJnuGNXzvI5VmtDP3doIsF2Zvec3zP7HOvOXWfWU6PU9HSf5m_nxZqv0loxQ9ppdsWvtAc6sNXfKQpX5-gLXqBlIonkIldxX5lZVYlflel99FWVzcBOFmVXmSycvKoZWbQ"
+class MyPlantClientException(Exception):
+    pass
 
 class MyPlant:
 
@@ -112,6 +113,9 @@ class MyPlant:
         except FileNotFoundError:
             raise
 
+        self.token = None
+        #self.login()
+        
         #if not os.path.isfile('data/dataitems.csv'):
         if not os.path.isfile(self._dfn):
             self.create_request_csv()
@@ -247,7 +251,7 @@ class MyPlant:
 
     def login(self):
         """Login to MyPlant"""
-        if self._session is None:
+        if (self.token is None) and (self._session is None):
             logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
             self._session = requests.session()
             headers = {'Content-Type': 'application/json', }
@@ -262,7 +266,8 @@ class MyPlant:
                                                   data=json.dumps(body), headers=headers)
                     if response.status_code == 200:
                         logging.debug(f'login {self._name} successful.')
-                        self.r = response.json()
+                        #self.r = response.json()
+                        self.token = response.json()['token']
                         break
                     else:
                         logging.error(
@@ -285,7 +290,7 @@ class MyPlant:
             self._session.close()
             self._session = None
 
-    def fetchdata(self, url):
+    def fetchdata_org(self, url):
         """login and return data based on url"""
         self.login()
         logging.debug(f'url: {url}')
@@ -298,6 +303,16 @@ class MyPlant:
         else:
             logging.error(
                 f"Code: {url}, {response.status_code}, {errortext.get(response.status_code,'no HTTP Error text available.')}")
+
+    def fetchdata(self, url):
+        self.login()
+        headers = {'x-seshat-token': self.token}
+        r = requests.get(burl + url, headers=headers, params=None)
+        if r.status_code != 200:
+             print('{}: {}'.format(r.status_code, r.text))
+             raise MyPlantClientException(r.text)
+        if r.status_code == 200:
+            return r.json()
 
     def _asset_data(self, serialNumber):
         """
@@ -313,16 +328,7 @@ class MyPlant:
         return self.fetchdata(url=r"/asset?assetType=J-Engine&serialNumber=" + str(serialNumber))
 
 
-    def fetchdata_token(self, url):
-        headers = {'x-seshat-token': token}
-        r = requests.get(burl + url, headers=headers, params=None)
-        if r.status_code != 200:
-             print('{}: {}'.format(r.status_code, r.text))
-             raise MyPlantClientException(r.text)
-        if r.status_code == 200:
-            return r.json()
-
-    def _asset_data_token(self, serialNumber):
+    def _asset_data_org(self, serialNumber):
         """
         Returns an Asset based on its id with all details
         including properties and DataItems.
@@ -333,7 +339,7 @@ class MyPlant:
         ----------------------------------------------
         url: /asset?assetType=J-Engine&serialNumber=sn
         """
-        return self.fetchdata_token(url=r"/asset?assetType=J-Engine&serialNumber=" + str(serialNumber))
+        return self.fetchdata_org(url=r"/asset?assetType=J-Engine&serialNumber=" + str(serialNumber))
 
     def historical_dataItem(self, id, itemId, timestamp):
         """
