@@ -27,3 +27,4 @@ from .dFSM import (
     msgFSM, 
     filterFSM
 )
+from .dFSMFigures import figures

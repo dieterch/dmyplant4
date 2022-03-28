@@ -290,7 +290,7 @@ class MyPlant:
             self._session.close()
             self._session = None
 
-    def fetchdata_org(self, url):
+    def fetchdata(self, url):
         """login and return data based on url"""
         self.login()
         logging.debug(f'url: {url}')
@@ -304,7 +304,7 @@ class MyPlant:
             logging.error(
                 f"Code: {url}, {response.status_code}, {errortext.get(response.status_code,'no HTTP Error text available.')}")
 
-    def fetchdata(self, url):
+    def fetchdata_token(self, url):
         self.login()
         headers = {'x-seshat-token': self.token}
         r = requests.get(burl + url, headers=headers, params=None)

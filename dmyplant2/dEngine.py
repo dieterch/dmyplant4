@@ -1,5 +1,6 @@
 ﻿from datetime import datetime, timedelta
 import math
+from multiprocessing.sharedctypes import Value
 from pprint import pprint as pp
 import pandas as pd
 import numpy as np
@@ -74,14 +75,20 @@ class Engine:
             name = valrec['Validation Engine']
         else:
             id = int(edf['id'])
-            if not valstart: # take Commissioning date if no valstart date is given.
+            if pd.isnull(valstart): # take Commissioning date if no valstart date is given.
                 valstart = pd.to_datetime(edf['Commissioning Date'],infer_datetime_format=True)
+                if pd.isnull(valstart):
+                    valstart = pd.to_datetime(edf['IB Unit Commissioning Date'],infer_datetime_format=True)
+                    if pd.isnull(valstart):
+                        raise ValueError(f"SN {sn} => no valid commissioning data found.")
             valstart = pd.to_datetime(valstart,infer_datetime_format=True)
             ts = int(valstart.timestamp()*1e3)
-            if not oph_start: 
-                oph_start = mp.historical_dataItem(id, 161, ts).get('value', None) or 0
+            if not oph_start:
+                oph_help = mp.historical_dataItem(id, 161, ts)
+                oph_start = oph_help if oph_help else 0
             if not start_start:
-                start_start = mp.historical_dataItem(id, 179, ts).get('value', None) or 0
+                start_help = mp.historical_dataItem(id, 179, ts)
+                start_start = start_help if start_help else 0
             if not name:
                 name = edf['IB Site Name'] + ' ' + edf['Engine ID']            
 
@@ -688,7 +695,7 @@ class Engine:
 
     def hist_data2(self, itemIds={161: ['CountOph', 'h']}, p_limit=None, p_from=None, p_to=None, timeCycle=86400,
                   assetType='J-Engine', includeMinMax='false', forceDownSampling='false', slot=0, 
-                  forceReload=False, debug=False, userfunc=None, silent=False):
+                  forceReload=False, debug=False, userfunc=None, silent=False, suffix=''):
         """
         Get pandas dataFrame of dataItems history, either limit or From & to are required
         ItemIds             dict   e.g. {161: ['CountOph','h']}, dict of dataItems to query.
@@ -752,7 +759,7 @@ class Engine:
             itemIds = { int(k):v for (k,v) in itemIds.items() }
             
             df = pd.DataFrame([])
-            fn = self._fname + fr"_{timeCycle}_{int(slot):02d}.hdf"
+            fn = self._fname + fr"_{timeCycle}_{int(slot):02d}{suffix}.hdf"
             df, np_from, itemIds = check_and_loadfile(p_from, fn, itemIds, forceReload)
 
             np_to = arrow.get(p_to).shift(seconds=-timeCycle)
