@@ -492,7 +492,9 @@ class msgFSM:
         ratedload = self._e['Power_PowerNominal']
         #for i, startversuch in rdb.iterrows() : 
         #for i, startversuch in tqdm(rdb.iterrows(), total=rdb.shape[0], ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
+        
         for i, startversuch in tqdm(enumerate(self.results['starts']), total=len(self.results['starts']), ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
+        #for i, startversuch in enumerate(self.results['starts']):
             sno = startversuch['no']
             #if startversuch['run2'] == False:
             if not self.results['starts'][sno]['run2']:

@@ -113,7 +113,6 @@ class MyPlant:
         except FileNotFoundError:
             raise
 
-        self.token = None
         self._appuser_token = None
         #self.login()
         
@@ -141,6 +140,14 @@ class MyPlant:
             cls.load_dataitems()
         return cls._dataitems
 
+    @classmethod
+    def get_itemIDs(cls,dat=['Count_OpHour']):
+        ret = {}
+        for item in dat:
+            res = cls.lookup_dataitems(lookup=item).to_dict('records')[0]
+            ret.update({ res.get('id',None) : [res.get('name',None),res.get('unit', '')] })
+        return ret
+    
     @classmethod
     def lookup_dataitems(cls,lookup, exclude=''):
         di = cls.get_dataitems()
@@ -252,7 +259,7 @@ class MyPlant:
 
     def login(self):
         """Login to MyPlant"""
-        if (self.token is None) and (self._session is None):
+        if self._session is None:
             logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
             self._session = requests.session()
             headers = {'Content-Type': 'application/json', }
@@ -268,7 +275,7 @@ class MyPlant:
                     if response.status_code == 200:
                         logging.debug(f'login {self._name} successful.')
                         #self.r = response.json()
-                        self.token = response.json()['token']
+                        #self.token = response.json()['token']
                         break
                     else:
                         logging.error(
@@ -318,16 +325,6 @@ class MyPlant:
         url: /asset?assetType=J-Engine&serialNumber=sn
         """
         return self.fetchdata(url=r"/asset?assetType=J-Engine&serialNumber=" + str(serialNumber))
-
-    # def fetchdata_token(self, url):
-    #     self.login()
-    #     headers = {'x-seshat-token': self.token}
-    #     r = requests.get(burl + url, headers=headers, params=None)
-    #     if r.status_code != 200:
-    #          print('{}: {}'.format(r.status_code, r.text))
-    #          raise MyPlantClientException(r.text)
-    #     if r.status_code == 200:
-    #         return r.json()
 
     def application_user_login(self):
         luser = 'JQHTKP1T496PG'
@@ -380,6 +377,8 @@ class MyPlant:
             "Count_OpHour",
             "Count_Start",
             "Power_PowerNominal",
+            "Para_Speed_Nominal",
+            "rP_Ramp_Set",
             "RMD_ListBuffMAvgOilConsume_OilConsumption",
         ]
         r = self._request_asset_graphql(assetId=assetId, properties=properties, dataItems=dataItems) 
@@ -453,7 +452,8 @@ class MyPlant:
         timestamp   int64   Optional,  timestamp in the DataItem history to query for.
         highres     Boolean Whether to use high res data. Much slower but gives the raw data.
         """
-        return self.fetchdata(url=fr"/asset/{id}/dataitem/{itemId}?timestamp={timestamp}")
+        res = self.fetchdata(url=fr"/asset/{id}/dataitem/{itemId}?timestamp={timestamp}")
+        return res['value']
 
     # def history_dataItem(self, id, itemId, p_from, p_to, timeCycle=3600):
     #     """
@@ -558,6 +558,7 @@ class MyPlant:
     def create_request_csv(self):
         """Create Request_csv with id, name, unit, myPlantName and save in /data"""
         
+        print(f"downnload available dataItems & properties from Myplant,store locally.")
         model=self.fetchdata('/model/J-Engine')
         dataitems=self.fetchdata('/system/localization?groups=data-items&groupResult=true')
 
@@ -607,8 +608,8 @@ class MyPlant:
         return pd.DataFrame.from_records([self._reshape_asset(a) for a in res['data']])
 
     def _fetch_installed_base(self):
+        print("Download Installed Fleet DataBase, story locally")
         fields = ['serialNumber']
-
         properties =  [
             'Design Number','Engine Type','Engine Version','Engine Series','Engine ID',
             'Control System Type',
