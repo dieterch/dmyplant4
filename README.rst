@@ -25,7 +25,7 @@ install miniconda distribution https://conda.io/projects/conda/en/latest/index.h
 *in a Miniconda command window, cd into the dmyplant2 folder and run*
 ::
   conda install "arrow=1.0.3"
-  conda install pandas matplotlib scipy bokeh tabulate
+  conda install pandas matplotlib scipy bokeh tabulate pytables ipykernel ipywidgets
   python setup.py develop
 
 *this creates links to this package in the Anaconda package location.

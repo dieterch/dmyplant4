@@ -137,6 +137,11 @@ class Engine:
 
         vfn = os.getcwd() + '/data/validations.pkl'
         validations = {}
+
+        if not ('Asset ID' in eng):
+            edf = cls.lookup_Installed_Fleet(mp, eng['serialNumber'])
+            eng['Asset ID'] = edf['id']
+
         if os.path.exists(vfn):
             validations = load_pkl(vfn)
         if validations and ((not eng['serialNumber'] in validations) or (validations[eng['serialNumber']]['source'] != 'from_eng')):
@@ -212,8 +217,8 @@ class Engine:
             checkpickle = self._check_for_pickling_error()
             if cachexpired or not checkpickle:
                 
-                local_asset = self._mp._asset_data(self._sn)
-                #local_asset = self._mp._asset_data_graphQL(self._id)
+                #local_asset = self._mp._asset_data(self._sn)
+                local_asset = self._mp._asset_data_graphQL(self._id)
 
                 #logging.debug(f"{temp.eng['Validation Engine']}, Engine Data fetched from Myplant")
                 logging.debug(f"{name}, Engine Data fetched from Myplant")
@@ -320,13 +325,6 @@ class Engine:
             return self._get_keyItem_xxx(key)['id']
         except KeyError:
             raise ValueError(f'no "id" for "{key}" found.')
-
-    def get_dataItems(self, dat=['Count_OpHour']):
-        ret = {}
-        for item in dat:
-            res = self.get_keyItem(item)
-            ret.update({ res.get('id',None) : [res.get('name',None),res.get('unit', '')] })
-        return ret
 
     def assess_dataItems(self, testset, p_ts):
         result = []
@@ -1154,9 +1152,10 @@ class Engine:
                 print('.', end='')
                 #print(f"###### in dengine.get_OilLabReport => sample Data for Development provided: {sampleId}")
             except FileNotFoundError:
-                sample = self._mp.fetchdata(url)
-                #print(f"###### in dengine.get_OilLabReport => sample Data saved for Development: {sampleId}")
-                #save_json(self._fname+'/'+sampleId+'.json', sample)
+                raise ValueError('I am in Development mode - do not dare to fetch data from myplant :-)')
+                #sample = self._mp.fetchdata(url)
+                print(f"###### in dengine.get_OilLabReport => sample Data saved for Development: {sampleId}")
+                save_json(self._fname+'/'+sampleId+'.json', sample)
             rec['probe.aluminium'] = get_corr(sample,'probe.aluminium', None)  #'2',
             rec['probe.aluminium-alert'] = get_corr(sample,'probe.aluminium-alert', None) # 'G',
             rec['probe.barium'] = get_corr(sample,'probe.barium', None) # '<0.0001',
