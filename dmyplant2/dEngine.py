@@ -173,8 +173,8 @@ class Engine:
         # if not all([sn!= None,name!= None,valstart!= None,oph_start!= None,start_start!=None]):
         #     raise ValueError('Engine Constructor - missing parameters')
 
-        if (id==None or sn == None or name== None or valstart== None or oph_start== None or start_start==None):
-            raise ValueError('Engine Constructor - missing parameters')
+        # if (id==None or sn == None or name== None or valstart== None or oph_start== None or start_start==None):
+        #     raise ValueError('Engine Constructor - missing parameters')
 
         # take engine Myplant Serial Number from Validation Definition
         self._mp = mp
@@ -212,8 +212,8 @@ class Engine:
             checkpickle = self._check_for_pickling_error()
             if cachexpired or not checkpickle:
                 
-                #local_asset = self._mp._asset_data(self._sn)
-                local_asset = self._mp._asset_data_graphQL(self._id)
+                local_asset = self._mp._asset_data(self._sn)
+                #local_asset = self._mp._asset_data_graphQL(self._id)
 
                 #logging.debug(f"{temp.eng['Validation Engine']}, Engine Data fetched from Myplant")
                 logging.debug(f"{name}, Engine Data fetched from Myplant")
