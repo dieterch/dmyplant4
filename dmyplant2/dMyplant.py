@@ -114,6 +114,7 @@ class MyPlant:
             raise
 
         self.token = None
+        self._appuser_token = None
         #self.login()
         
         #if not os.path.isfile('data/dataitems.csv'):
@@ -328,11 +329,23 @@ class MyPlant:
     #     if r.status_code == 200:
     #         return r.json()
 
+    def application_user_login(self):
+        luser = 'JQHTKP1T496PG'
+        lpassword = 'ae0874a64b659fea0af47e1f5c72f2dc'
+        url = burl + '/oauth/token'
+        auth = (luser, lpassword)
+        data = {'grant_type': 'client_credentials'}
+        r = requests.post(url, auth=auth, data=data, verify=True, proxies=None)
+        self._appuser_token = r.json()['access_token']
 
+    @property
+    def app_token(self):
+        if not self._appuser_token:
+            self.application_user_login()
+        return self._appuser_token
 
     def _request(self, method, endpoint, params=None, json_data=None):
-        self.login()
-        headers = {'x-seshat-token': self.token}
+        headers = {'x-seshat-token': self.app_token}
         request_method = {
             'get': requests.get,
             'post': requests.post,
@@ -350,8 +363,7 @@ class MyPlant:
             raise MyPlantClientException(r.text)
         return r
 
-    def _asset_data_graphQL(self, serialNumber):
-        limit = 100000
+    def _asset_data_graphQL(self, assetId=None):
         properties = [
             "Engine Series",
             "Engine Type",
@@ -370,72 +382,61 @@ class MyPlant:
             "Power_PowerNominal",
             "RMD_ListBuffMAvgOilConsume_OilConsumption",
         ]
-        filters = [
-            '{name:"modelId", op:EQUALS, value:"23", comb:AND}',
-            f'{{name:"serialNumber", op:EQUALS, value:"{str(serialNumber)}", comb:AND}}'            
-        ]
-        r = self._request_asset_graphql(limit=limit, properties=properties, dataItems=dataItems, filters=filters) 
-        return r['data']['assets']['items'][0]
+        r = self._request_asset_graphql(assetId=assetId, properties=properties, dataItems=dataItems) 
+        return r['data']['asset']
 
-    def _request_asset_graphql(self, limit=100000, properties=[], dataItems=[], filters=[]):
+    def _request_asset_graphql(self, assetId=None, properties=[], dataItems=[]):
         """
         Returns specific Asset Data
         Parameters:
 
         Name	    type    Description
-        sn          int     IB ItemNumber Engine
+        assetId     int     AssetId Engine
         """
         graphQL = """
         {
-            assets(filter: { 
-                limit: %s, 
-                filters: [
-                    %s
-                ] }) {
-                items {
+            asset( id: %s ) {
+                id
+                serialNumber
+                modelId
+                model
+                site {
                     id
-                    serialNumber
-                    modelId
-                    model
-                    site {
-                        id
-                        name
-                        country
-                    }
-                    customer {
-                        id
-                        name
-                    }
-                    status {
-                        lastContactDate
-                        lastDataFlowDate
-                    }
-                    properties(
-                        names: [
-                            %s
-                        ]
-                    ) {
-                        id
-                        name
-                        value
-                    }
-                    dataItems(
-                        query: [
-                            %s
-                        ]
-                    ) {
-                        id
-                        name
-                        value
-                        unit
-                        timestamp
-                    }
+                    name
+                    country
+                }
+                customer {
+                    id
+                    name
+                }
+                status {
+                    lastContactDate
+                    lastDataFlowDate
+                }
+                properties(
+                    names: [
+                        %s
+                    ]
+                ) {
+                    id
+                    name
+                    value
+                }
+                dataItems(
+                    query: [
+                        %s
+                    ]
+                ) {
+                    id
+                    name
+                    value
+                    unit
+                    timestamp
                 }
             }
         }
         """ % (
-            limit,
-            ','.join(filters),
+            assetId,
             ','.join([f'"{i}"' for i in properties]),
             ','.join([f'"{i}"' for i in dataItems]),            
         )

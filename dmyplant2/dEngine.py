@@ -65,6 +65,7 @@ class Engine:
     @classmethod
     def from_fleet(cls, mp, edf, n=0, name=None, valstart=None, oph_start=None, start_start=None, 
         Old_Parts_first_replaced_OPH=None, Old_Parts_replaced_before_upgrade=None):
+        id = int(edf['id'])
         sn = str(edf['serialNumber'])
         validations = cls._get_cached_validations(sn)
         if str(sn) in validations:
@@ -74,7 +75,6 @@ class Engine:
             start_start = valrec['starts@start']
             name = valrec['Validation Engine']
         else:
-            id = int(edf['id'])
             if pd.isnull(valstart): # take Commissioning date if no valstart date is given.
                 valstart = pd.to_datetime(edf['Commissioning Date'],infer_datetime_format=True)
                 if pd.isnull(valstart):
@@ -107,7 +107,8 @@ class Engine:
             cls._save_cached_validations(validations)
 
         return cls(
-            mp, 
+            mp,
+            int(id), 
             int(sn), 
             n, 
             name, 
@@ -145,6 +146,7 @@ class Engine:
 
         return cls(
             mp, 
+            eng['Asset ID'],
             eng['serialNumber'], 
             eng['n'],
             eng['Validation Engine'],
@@ -154,7 +156,7 @@ class Engine:
             eng['Old Parts first replaced OPH'] if 'Old Parts first replaced OPH' in eng else None,
             eng['Old Parts replaced before upgrade'] if 'Old Parts replaced before upgrade' in eng else None)
 
-    def __init__(self, mp, sn=None, n=None, name=None, valstart = None, oph_start=None, start_start=None, 
+    def __init__(self, mp, id=None, sn=None, n=None, name=None, valstart = None, oph_start=None, start_start=None, 
         Old_Parts_first_replaced_OPH=None, Old_Parts_replaced_before_upgrade=None):
         """Engine Constructor
 
@@ -171,11 +173,12 @@ class Engine:
         # if not all([sn!= None,name!= None,valstart!= None,oph_start!= None,start_start!=None]):
         #     raise ValueError('Engine Constructor - missing parameters')
 
-        if (sn == None or name== None or valstart== None or oph_start== None or start_start==None):
+        if (id==None or sn == None or name== None or valstart== None or oph_start== None or start_start==None):
             raise ValueError('Engine Constructor - missing parameters')
 
         # take engine Myplant Serial Number from Validation Definition
         self._mp = mp
+        self._id = str(id)
         self._sn = str(sn)
         self._name = name
         self._data_base = os.getcwd() + f'/data/{str(self._sn)}'
@@ -209,8 +212,8 @@ class Engine:
             checkpickle = self._check_for_pickling_error()
             if cachexpired or not checkpickle:
                 
-                local_asset = self._mp._asset_data(self._sn)
-                #local_asset = self._mp._asset_data_graphQL(self._sn)
+                #local_asset = self._mp._asset_data(self._sn)
+                local_asset = self._mp._asset_data_graphQL(self._id)
 
                 #logging.debug(f"{temp.eng['Validation Engine']}, Engine Data fetched from Myplant")
                 logging.debug(f"{name}, Engine Data fetched from Myplant")
