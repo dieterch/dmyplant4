@@ -140,13 +140,13 @@ class MyPlant:
             cls.load_dataitems()
         return cls._dataitems
 
-    @classmethod
-    def get_itemIDs(cls,dat=['Count_OpHour']):
-        ret = {}
-        for item in dat:
-            res = cls.lookup_dataitems(lookup=item).to_dict('records')[0]
-            ret.update({ res.get('id',None) : [res.get('name',None),res.get('unit', '')] })
-        return ret
+    # @classmethod
+    # def get_itemIDs(cls,dat=['Count_OpHour']):
+    #     ret = {}
+    #     for item in dat:
+    #         res = cls.lookup_dataitems(lookup=item).to_dict('records')[0]
+    #         ret.update({ res.get('id',None) : [res.get('name',None),res.get('unit', '')] })
+    #     return ret
     
     @classmethod
     def lookup_dataitems(cls,lookup, exclude=''):
