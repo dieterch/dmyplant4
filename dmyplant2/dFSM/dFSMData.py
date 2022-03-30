@@ -14,7 +14,7 @@ def _load_data(fsm, engine=None, p_data=None, ts_from=None, ts_to=None, p_timeCy
     #return engine.hist_data(
     # changed to hist_data2 8.3.2022 - Dieter
     return engine.hist_data2(
-        itemIds = engine.self.get_dataItems(p_data or ['Various_Values_SpeedAct','Power_PowerAct']),
+        itemIds = engine.get_dataItems(p_data or ['Various_Values_SpeedAct','Power_PowerAct']),
         p_from = arrow.get(ts_from).to('Europe/Vienna'),
         p_to = arrow.get(ts_to).to('Europe/Vienna'),
         timeCycle=p_timeCycle,
