@@ -169,6 +169,7 @@ class FSM:
                     ], e),             
                 'targetoperation': State('targetoperation',[
                     { 'trigger':'1232 Request module off', 'new-state':'rampdown'},
+                    { 'trigger':'1239 Group alarm - shut down', 'new-state':'runout'},
                     { 'trigger':'1236 Generator CB opened', 'new-state':'idle'},
                     ]),
                 'rampdown': State('rampdown',[

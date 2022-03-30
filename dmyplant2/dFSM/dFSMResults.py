@@ -10,25 +10,21 @@ def loadramp_edge_detect(fsm, startversuch, periodfactor=1.5, helplinefactor=0.8
         s = startversuch['timing']['loadramp'][-1]['start'].timestamp()
         e = startversuch['timing']['loadramp'][-1]['end'].timestamp()
         e2 = s + periodfactor * (e-s)
-        #print(f"**** DEBUG Startversuch {startversuch['no']}: loadramp: {startversuch['loadramp']}, e2={e2-s} => {(e2 - s) < 5 * startversuch['loadramp']}")
-        if (e2 - s) < 5 * startversuch['loadramp']:
-            data = load_data(fsm, cycletime=1, tts_from=s, tts_to=e2, silent=True, p_data=['Power_PowerAct'], p_forceReload=False, p_suffix='loadramp')
-            if not data.empty:
-                data = data[(data['time'] >= int(s * 1000)) & (data['time'] <= int(e2 * 1000))]
-                #s,e,e2, data.iloc[0]['time'], data.iloc[-1]['time'],
-                x0 = data.iloc[0]['datetime']
-                y0 = 0.0
-                x1 = data.iloc[-1]['datetime']
-                y1 = data.iloc[-1]['Power_PowerAct'] * helplinefactor
-                data['helpline'] = data['Power_PowerAct'] + (x0 - data['datetime'])* (y1-y0)/(x1-x0) + y0
-                
-                point = data['helpline'].idxmax()
-                if point == point: # test for not NaN
-                    edge = data.loc[point]
-                    xmax = edge['datetime']
-                    ymax = data.at[edge.name,'Power_PowerAct']
-                else:
-                    return pd.DataFrame([]), startversuch['endtime'], 0.0, 0.0, 0.0
+        data = load_data(fsm, cycletime=1, tts_from=s, tts_to=e2, silent=True, p_data=['Power_PowerAct'], p_forceReload=False, p_suffix='loadramp')
+        if not data.empty:
+            data = data[(data['time'] >= int(s * 1000)) & (data['time'] <= int(e2 * 1000))]
+            #s,e,e2, data.iloc[0]['time'], data.iloc[-1]['time'],
+            x0 = data.iloc[0]['datetime']
+            y0 = 0.0
+            x1 = data.iloc[-1]['datetime']
+            y1 = data.iloc[-1]['Power_PowerAct'] * helplinefactor
+            data['helpline'] = data['Power_PowerAct'] + (x0 - data['datetime'])* (y1-y0)/(x1-x0) + y0
+            
+            point = data['helpline'].idxmax()
+            if point == point: # test for not NaN
+                edge = data.loc[point]
+                xmax = edge['datetime']
+                ymax = data.at[edge.name,'Power_PowerAct']
             else:
                 return pd.DataFrame([]), startversuch['endtime'], 0.0, 0.0, 0.0
         else:
@@ -37,6 +33,8 @@ def loadramp_edge_detect(fsm, startversuch, periodfactor=1.5, helplinefactor=0.8
         return pd.DataFrame([]), startversuch['endtime'], 0.0, 0.0, 0.0
     duration = xmax.timestamp()-s
     ramprate = ymax / duration
+    if duration < 5: # konstante Last ?
+        return pd.DataFrame([]), startversuch['endtime'], 0.0, 0.0, 0.0
     return data, xmax, ymax, duration, ramprate 
 
 # RUN2 Results

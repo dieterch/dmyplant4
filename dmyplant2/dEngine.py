@@ -1248,8 +1248,9 @@ class Engine:
         # messages consist of the following severities
         sev = [600,650,700,800]
         p_from_ts = int(arrow.get(p_from).timestamp() * 1e3)
-        p_to_ts = int(arrow.now().timestamp() * 1e3)
-        messages = self.batch_hist_alarms(p_from = p_from_ts, p_to = p_to_ts)
+        p_to_ts = int(arrow.get(p_to).timestamp() * 1e3)
+        messages = self.batch_hist_alarms(p_severities=sev, p_from = p_from_ts, p_to = p_to_ts)
+        messages = messages.iloc[::-1]
         return messages.reset_index()
 
 
@@ -1295,7 +1296,8 @@ class Engine:
             new_messages = self.batch_hist_alarms(p_from = last_ts, p_to = p_to_ts)
             if not new_messages.empty:
                 new_messages = new_messages[::-1] # turn around the response
-                messages.append(new_messages) # and append to existing messages.
+                #messages.append(new_messages) # and append to existing messages.
+                messages = pd.concat([messages[:-1],new_messages])
                 # do not store the changes for performance reasons.
         else:
             messages = messages[messages['timestamp'] <= p_to_ts]

@@ -114,6 +114,7 @@ class MyPlant:
             raise
 
         self._appuser_token = None
+        self._token = None
         #self.login()
         
         #if not os.path.isfile('data/dataitems.csv'):
@@ -275,7 +276,8 @@ class MyPlant:
                     if response.status_code == 200:
                         logging.debug(f'login {self._name} successful.')
                         #self.r = response.json()
-                        #self.token = response.json()['token']
+                        self._token = response.json()['token']
+                        self._appuser_token = self._token
                         break
                     else:
                         logging.error(
@@ -327,13 +329,14 @@ class MyPlant:
         return self.fetchdata(url=r"/asset?assetType=J-Engine&serialNumber=" + str(serialNumber))
 
     def application_user_login(self):
-        luser = 'JQHTKP1T496PG'
-        lpassword = 'ae0874a64b659fea0af47e1f5c72f2dc'
-        url = burl + '/oauth/token'
-        auth = (luser, lpassword)
-        data = {'grant_type': 'client_credentials'}
-        r = requests.post(url, auth=auth, data=data, verify=True, proxies=None)
-        self._appuser_token = r.json()['access_token']
+        # luser = 'JQHTKP1T496PG'
+        # lpassword = 'ae0874a64b659fea0af47e1f5c72f2dc'
+        # url = burl + '/oauth/token'
+        # auth = (luser, lpassword)
+        # data = {'grant_type': 'client_credentials'}
+        # r = requests.post(url, auth=auth, data=data, verify=True, proxies=None)
+        # self._appuser_token = r.json()['access_token']
+        self.login()
 
     @property
     def app_token(self):
