@@ -58,7 +58,8 @@ def FSM_add_Notations(fig,fsm,startversuch):
     # visualize calcualted loadramp
     if 'loadramp' in startversuch['timing']:
         x0 = startversuch['timing']['loadramp'][-1]['start']; y0 = 0.0
-        default_ramp_duration = 100.0 / fsm._e['rP_Ramp_Set']
+        default_ramp_rate = fsm._e['rP_Ramp_Set'] if fsm._e['rP_Ramp_Set'] != None else 0.625
+        default_ramp_duration = 100.0 / default_ramp_rate
         x1 = x0 + pd.Timedelta(default_ramp_duration, unit='sec'); y1 = fsm._e['Power_PowerNominal']
         ramp = fig.line(x=[x0,x1],y=[y0,y1], y_range_name='0', line_color='green', line_dash='solid', line_alpha=0.4, line_width=1)                            
     return fig
