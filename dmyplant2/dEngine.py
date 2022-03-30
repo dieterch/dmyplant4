@@ -217,8 +217,8 @@ class Engine:
             checkpickle = self._check_for_pickling_error()
             if cachexpired or not checkpickle:
                 
-                #local_asset = self._mp._asset_data(self._sn)
-                local_asset = self._mp._asset_data_graphQL(self._id)
+                local_asset = self._mp._asset_data(self._sn)
+                #local_asset = self._mp._asset_data_graphQL(self._id)
 
                 #logging.debug(f"{temp.eng['Validation Engine']}, Engine Data fetched from Myplant")
                 logging.debug(f"{name}, Engine Data fetched from Myplant")
@@ -325,6 +325,13 @@ class Engine:
             return self._get_keyItem_xxx(key)['id']
         except KeyError:
             raise ValueError(f'no "id" for "{key}" found.')
+
+    def get_dataItems(self, dat=['Count_OpHour']):
+        ret = {}
+        for item in dat:
+            res = self.get_keyItem(item)
+            ret.update({ res.get('id',None) : [res.get('name',None),res.get('unit', '')] })
+        return ret
 
     def assess_dataItems(self, testset, p_ts):
         result = []
@@ -553,7 +560,7 @@ class Engine:
             try:
                 testdata = self._mp.hist_data(
                     self.id,
-                    itemIds= self.get_dataItems([item]), 
+                    itemIds= self._mp.get_itemIDs([item]), 
                     p_from=p_ts, 
                     p_to=p_ts.shift(seconds=1), 
                     timeCycle=1,
