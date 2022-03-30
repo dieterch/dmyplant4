@@ -560,7 +560,7 @@ class Engine:
             try:
                 testdata = self._mp.hist_data(
                     self.id,
-                    itemIds= self._mp.get_itemIDs([item]), 
+                    itemIds= self.get_dataItems([item]), 
                     p_from=p_ts, 
                     p_to=p_ts.shift(seconds=1), 
                     timeCycle=1,
