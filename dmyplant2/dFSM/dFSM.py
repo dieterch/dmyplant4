@@ -239,6 +239,7 @@ class msgFSM:
         self.svec.service_selector = '???'
 
         self.pfn = self._e._fname + '_statemachine.pkl'
+        self.hdfn = self._e._fname + '_statemachine.hdf'
         #self._runlog = []
         #self._runlogdetail = []
         self.init_results()
@@ -274,20 +275,30 @@ class msgFSM:
         if os.path.exists(self.pfn):
             with open(self.pfn, 'rb') as handle:
                 self.results = pickle.load(handle)
+        if os.path.exists(self.hdfn):
+            dlogdetail = pd.read_hdf(self.hdfn,"runlogdetail")
+            self.results['runlogdetail'] = list(dlogdetail[0])
 
     def store(self):
         self.unstore()
+        runlogdetail = self.results['runlogdetail']
+        del self.results['runlogdetail']
+        dlogdetail = pd.DataFrame(runlogdetail)
+        dlogdetail.to_hdf(self.hdfn, 'runlogdetail', complevel=6)
         with open(self.pfn, 'wb') as handle:
             pickle.dump(self.results, handle, protocol=4)
+        self.results['runlogdetail'] = runlogdetail
 
     def unstore(self):
         if os.path.exists(self.pfn):
             os.remove(self.pfn)
-
+        if os.path.exists(self.hdfn):
+            os.remove(self.hdfn)
 
     ## message handling
     def load_messages(self,e, p_from=None, p_to=None, skip_days=None):
-        self._messages = e.get_messages(p_from, p_to)
+        self._messages = e.get_messages(p_from, p_to) #using stored messages.
+        #self._messages = e.get_messages2(p_from, p_to) #always pull all messages from Myplant
         pfrom_ts = int(pd.to_datetime(p_from, infer_datetime_format=True).timestamp() * 1000) if p_from else 0
         pto_ts = int(pd.to_datetime(p_to, infer_datetime_format=True).timestamp() * 1000) if p_to else int(pd.Timestamp.now().timestamp() * 1000)
         self._messages = self._messages[(self._messages.timestamp > pfrom_ts) & (self._messages.timestamp < pto_ts)]
@@ -488,29 +499,33 @@ class msgFSM:
             self._fsm_Operating_Cycle()
 
 ##########################################################
-    def run2(self):
+    def run2(self, silent=False):
         ratedload = self._e['Power_PowerNominal']
-        #for i, startversuch in rdb.iterrows() : 
-        #for i, startversuch in tqdm(rdb.iterrows(), total=rdb.shape[0], ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
-        
-        for i, startversuch in tqdm(enumerate(self.results['starts']), total=len(self.results['starts']), ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
-        #for i, startversuch in enumerate(self.results['starts']):
-            sno = startversuch['no']
-            #if startversuch['run2'] == False:
-            if not self.results['starts'][sno]['run2']:
-                self.results['starts'][sno]['run2'] = True
-                #startversuch['run2'] = True
-                data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch)
-                if not data.empty:
-                    # update timings accordingly
-                    self.results['starts'][sno]['timing']['loadramp'][0]['end'] = xmax
-                    if 'targetoperation' in self.results['starts'][sno]['timing']:
-                        self.results['starts'][sno]['timing']['targetoperation'][0]['start'] = xmax
-                    self.results['starts'][sno]['targetload'] = ymax
-                    self.results['starts'][sno]['ramprate'] = ramprate / ratedload * 100.0
-                    phases = list(self.results['starts'][sno]['timing'].keys())
-                    self._harvest_timings(self.results['starts'][sno], phases)
-                    #print(f"Start: {startversuch['no']:3d} xmax: {xmax}, ymax: {ymax:6.0f}, duration: {duration:5.1f}, ramprate: {ramprate / ratedload * 100.0:4.2f} %/s")
+        if silent:
+            for i, startversuch in enumerate(self.results['starts']):
+                self.dorun2(ratedload, startversuch)
+        else:
+            for i, startversuch in tqdm(enumerate(self.results['starts']), total=len(self.results['starts']), ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
+                self.dorun2(ratedload, startversuch)
+
+    def dorun2(self,ratedload,startversuch):
+        sno = startversuch['no']
+        #if startversuch['run2'] == False:
+        if not self.results['starts'][sno]['run2']:
+            self.results['starts'][sno]['run2'] = True
+            #startversuch['run2'] = True
+            data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch)
+            if not data.empty:
+                # update timings accordingly
+                self.results['starts'][sno]['timing']['loadramp'][0]['end'] = xmax
+                if 'targetoperation' in self.results['starts'][sno]['timing']:
+                    self.results['starts'][sno]['timing']['targetoperation'][0]['start'] = xmax
+                self.results['starts'][sno]['targetload'] = ymax
+                self.results['starts'][sno]['ramprate'] = ramprate / ratedload * 100.0
+                phases = list(self.results['starts'][sno]['timing'].keys())
+                self._harvest_timings(self.results['starts'][sno], phases)
+                #print(f"Start: {startversuch['no']:3d} xmax: {xmax}, ymax: {ymax:6.0f}, duration: {duration:5.1f}, ramprate: {ramprate / ratedload * 100.0:4.2f} %/s")
+
 
 #********************************************************
     def dorun2_old(self, index_list, startversuch):

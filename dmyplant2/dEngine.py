@@ -757,7 +757,10 @@ class Engine:
                             # list(ldf['time'][-2:-1])[0] + timeCycle)
                             # new starting point ...
                             if debug:
-                                print(f"\nitemIds: {set(itemIds)}, Shape={ldf.shape}, from: {p_from.format('DD.MM.YYYY - HH:mm')}, to:   {last_p_to.format('DD.MM.YYYY - HH:mm')}, loaded from {fn}")
+                                print(f"\nitemIds: {set(itemIds)}, Shape={ldf.shape}, from: {p_from.format('DD.MM.YYYY - HH:mm:ss')}, to:   {last_p_to.format('DD.MM.YYYY - HH:mm:ss')}, loaded from {fn}")
+                                print(ldf.head(5))
+                                print('...')
+                                print(ldf.tail(5))
                 except:
                     pass
             return ldf, last_p_to, itemIds
@@ -780,7 +783,10 @@ class Engine:
                 df = pd.concat([df,ndf])
 
                 if debug:
-                    print(f"\nitemIds: {set(itemIds)}, Shape={ndf.shape}, from: {np_from.format('DD.MM.YYYY - HH:mm')}, to:   {p_to.format('DD.MM.YYYY - HH:mm')}, added to {fn}")
+                    print(f"\nitemIds: {set(itemIds)}, Shape={ndf.shape}, from: {np_from.format('DD.MM.YYYY - HH:mm:ss')}, to:   {p_to.format('DD.MM.YYYY - HH:mm:ss')}, added to {fn}")
+                    print(ldf.head(5))
+                    print('...')
+                    print(ldf.tail(5))
 
             df.reset_index(drop=True, inplace=True)
 
@@ -1224,6 +1230,27 @@ class Engine:
         except: 
             raise Exception("Failed to fetch Oil sample Data")
         return rec
+
+    def get_messages2(self, p_from=None, p_to=None):
+        """load messages ready for the Finite State Mchine Analysis
+
+        Args:
+            p_from (date, understandable by arrow, optional): first message date. Defaults to very first message.
+            p_to (date, understandable by arrow, optional): last message date. Defaults to Now.
+
+        Raises:
+            ValueError: Inform the User/Programmer if 500000 or more messages are available. 
+            Inthis case the constant value needs to be increased in the code of this function. 
+
+        Returns:
+            pd.DataFrame: Diane Messages.
+        """
+        # messages consist of the following severities
+        sev = [600,650,700,800]
+        p_from_ts = int(arrow.get(p_from).timestamp() * 1e3)
+        p_to_ts = int(arrow.now().timestamp() * 1e3)
+        messages = self.batch_hist_alarms(p_from = p_from_ts, p_to = p_to_ts)
+        return messages.reset_index()
 
 
     def get_messages(self, p_from=None, p_to=None):
