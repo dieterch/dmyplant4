@@ -164,7 +164,7 @@ class FSM:
                     ]),             
                 'loadramp': LoadrampState('loadramp',[
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'},
-                    { 'trigger':'1232 Request module off', 'new-state':'rampdown'},
+                    #{ 'trigger':'1232 Request module off', 'new-state':'rampdown'},
                     { 'trigger':'Calculated statechange', 'new-state':'targetoperation'},
                     ], e),             
                 'targetoperation': State('targetoperation',[
@@ -374,7 +374,7 @@ class msgFSM:
     def _harvest_timings(self, sv, phases):
         durations = { ph:pd.Timedelta(sv['timing'][ph][-1]['end'] - sv['timing'][ph][-1]['start']).total_seconds() for ph in phases}
         durations['cumstarttime'] = sum([v for k,v in durations.items() if k in ['startpreparation','starter','speedup','idle','synchronize','loadramp']])
-        self.results['starts'][-1].update(durations)
+        self.results['starts'][sv['no']].update(durations)
 
     def _fsm_Operating_Cycle(self):
         if self.svec.statechange:
@@ -515,7 +515,7 @@ class msgFSM:
         if not self.results['starts'][sno]['run2']:
             self.results['starts'][sno]['run2'] = True
             #startversuch['run2'] = True
-            data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch)
+            data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch, periodfactor=3, helplinefactor=0.8)
             if not data.empty:
                 # update timings accordingly
                 self.results['starts'][sno]['timing']['loadramp'][0]['end'] = xmax
