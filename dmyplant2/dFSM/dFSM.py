@@ -84,8 +84,9 @@ class State:
 
 # SpezialFall Loadram, hier wird ein berechneter Statechange ermittelt.
 class LoadrampState(State):
-    def __init__(self, statename, transferfun_list, e):
+    def __init__(self, statename, transferfun_list, operator, e):
         self._e = e
+        self._operator = operator
         self._full_load_timestamp = None
         self._loadramp = self._e['rP_Ramp_Set'] or 0.625 # %/sec
         self._default_ramp_duration = 100.0 / self._loadramp
@@ -105,6 +106,7 @@ class LoadrampState(State):
         # calculate the end of ramp time if it isnt defined.
         if self._full_load_timestamp == None:
             self._full_load_timestamp = int((vector.currentstate_start.timestamp() + self._default_ramp_duration) * 1e3)
+            self._operator.inject_message({'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600})
 
         # use the message target load reached to make the trigger more accurate. (This message isnt available on all engines.)
         if vector.msg['name'] == '9047':
@@ -113,17 +115,17 @@ class LoadrampState(State):
         # trigger on the firstmessage after the calcalulated event time, switch to 'targetoperation'
         # insert a virtual message exactly at _full_load_timestamp
         if self._full_load_timestamp != None and int(vector.msg['timestamp']) >= self._full_load_timestamp:
-                
+
                 # change the state, because we do the statechange in vector 1 
-                vector1 = self.update_vector_on_statechange(vector)
-                vector1.currentstate = 'targetoperation'
+                vector2 = self.update_vector_on_statechange(vector)
+                vector2.currentstate = 'targetoperation'
                 
                 # copy state vector, fill out the relevant data and trigger to tagetopeartion
-                vector2 = copy.deepcopy(vector1)
-                vector2.msg = {'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600}
-                vector2.statechange = True
-                vector2.currentstate = 'targetoperation'
-                vector2.currentstate_start = pd.to_datetime(self._full_load_timestamp * 1e6)
+                vector1 = copy.deepcopy(vector2)
+                vector1.msg = {'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600}
+                vector1.statechange = True
+                vector1.currentstate = 'targetoperation'
+                vector1.currentstate_start = pd.to_datetime(self._full_load_timestamp * 1e6)
 
                 # Reset the State for the next event.
                 self._full_load_timestamp = None
@@ -134,7 +136,8 @@ class LoadrampState(State):
         # just pass through state vectors in all other cases.
         return [vector]
 class FSM:
-    def __init__(self, e):
+    def __init__(self, operator, e):
+        self._operator = operator
         self._e = e
         self._initial_state = 'standstill'
         self._states = {
@@ -143,6 +146,7 @@ class FSM:
                     ]),
                 'startpreparation': State('startpreparation',[
                     { 'trigger':'1249 Starter on', 'new-state': 'starter'},
+                    { 'trigger':'1225 Service selector switch Off', 'new-state': 'standstill'},
                     { 'trigger':'1232 Request module off', 'new-state': 'standstill'}
                     ]),
                 'starter': State('starter',[
@@ -166,7 +170,7 @@ class FSM:
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'},
                     #{ 'trigger':'1232 Request module off', 'new-state':'rampdown'},
                     { 'trigger':'Calculated statechange', 'new-state':'targetoperation'},
-                    ], e),             
+                    ], operator, e),             
                 'targetoperation': State('targetoperation',[
                     { 'trigger':'1232 Request module off', 'new-state':'rampdown'},
                     { 'trigger':'1239 Group alarm - shut down', 'new-state':'runout'},
@@ -217,16 +221,20 @@ class filterFSM:
     vertical_lines_times = ['startpreparation','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
 
 class msgFSM:
-    def __init__(self, e, p_from = None, p_to=None, skip_days=None, frompickle='NOTIMPLEMENTED',successtime=600):
+    def __init__(self, e, p_from = None, p_to=None, skip_days=None, frompickle='NOTIMPLEMENTED'):
         self._e = e
-        self._successtime = successtime
+        self._successtime = 0 #success, when targetoperation is longer than xx seconds
         self.load_messages(e, p_from, p_to, skip_days)
+
+        self.message_queue = []
+        self.extra_messages = []
+
         self._pre_period = 5*60 #sec 'prerun' in data download Start before cycle start event.
         self._post_period = 21*60 #sec 'postrun' in data download Start after cycle stop event.
         #self._pre_period = 0 #sec 'prerun' in data download Start before cycle start event.
         #self._post_period = 0 #sec 'postrun' in data download Start after cycle stop event.
 
-        fsmStates = FSM(self._e)
+        fsmStates = FSM(self, self._e)
         fsmStates.dot('FSM.dot')
         self.states = fsmStates.states
 
@@ -310,6 +318,9 @@ class msgFSM:
             self.first_message = pd.Timestamp(arrow.get(self.first_message).shift(days=skip_days).timestamp()*1e9)
             self._messages = self._messages[self._messages['timestamp'] > int(arrow.get(self.first_message).shift(days=skip_days).timestamp()*1e3)]
         self.count_messages = self._messages.shape[0]
+
+    def inject_message(self, msg):
+        self.extra_messages.append(msg)
 
     def msgtxt(self, msg, idx=0):
         return f"{idx:>06} {msg['severity']} {msg['timestamp']} {pd.to_datetime(int(msg['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')}  {msg['name']} {msg['message']}"
@@ -471,11 +482,85 @@ class msgFSM:
             }
             self.results['runlog'].append(_logline)
 
+    def fill_message_queue(self, mq, d, dt):
+        """fills a message queue with dt time lenght
+
+        Args:
+            mq (list): message que
+            d (iterator): message iterator variable
+            dt (int): delta t in min
+
+        Returns:
+            _type_: _description_
+        """
+        i, m = next(d)
+        t0 = m['timestamp'] 
+        #print('von: ',t0, pd.to_datetime(t0 * 1000000))
+        dtns = dt*60*1000
+        #print('bis: ',t0 + dtns, pd.to_datetime((t0 + dtns) * 1000000))
+        mit = m
+        while mit['timestamp'] < t0 + dtns:
+            mq.append(mit)
+            try:
+                i, mit = next(d)
+            except StopIteration:
+                mq.pop()
+                break
+        mq.append(mit)
+        return mq
+
+    def merge_extra_messages(self, mq, em):
+        emc = em.copy()
+        max_timestamp = max([ts['timestamp'] for ts in mq])
+        for m in emc:
+            if m['timestamp'] < max_timestamp:
+                mq.append(m)
+                em.remove(m)
+        mq.sort(key=lambda x: x['timestamp'], reverse=False)
+        return mq, em
+
+    def consume_message_queue(self, message_queue):
+        for msg in message_queue:
+            self.dorun1(msg)
+        return []
+
+    def debug_msg(self, msgque, max=10):
+        return
+        print(len(msgque))
+        for msg in msgque[:max]:
+            print(f"{msg['timestamp']} {pd.to_datetime(msg['timestamp'] * 1000000)} {msg['name']} {msg['message']}")
+        print()
+
+    def new_run1(self, enforce=False, silent=False ,successtime=300):
+        it = self._messages.iterrows()
+        self.message_queue = []
+        #pbar = tqdm(total=len(self._messages), ncols=80, mininterval=1, unit=' messages', desc="FSM")
+        count = 0
+        while True:
+            try:
+                self.message_queue = self.fill_message_queue(self.message_queue, it, 5*60)
+                self.debug_msg(self.message_queue)
+                self.debug_msg(self.extra_messages)
+                count += len(self.message_queue)
+                #pbar.update(count)
+
+                self.message_queue, self.extra_messages = self.merge_extra_messages(self.message_queue, self.extra_messages)
+                self.debug_msg(self.message_queue)
+                self.debug_msg(self.extra_messages)
+
+                self.message_queue = self.consume_message_queue(self.message_queue)
+                self.debug_msg(self.message_queue)
+            except StopIteration:
+                print(f"{len(self._messages)}, {count} messages scanned.")
+                break
+        #pbar.close()        
+
     def call_trigger_states(self):
         return self.states[self.svec.currentstate].trigger_on_vector(self.svec)
 
     ## FSM Entry Point.
-    def run1(self, enforce=False, silent=False):
+    def run1(self, enforce=False, silent=False ,successtime=300):
+        self._successtime = successtime
         if len(self.results['starts']) == 0 or enforce:
             self.init_results()
 

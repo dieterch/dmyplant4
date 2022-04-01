@@ -6,6 +6,12 @@ from .dFSM import filterFSM
 from .dFSMData import load_data
 
 def loadramp_edge_detect(fsm, startversuch, periodfactor=1.5, helplinefactor=0.8):
+    # 1.4.2022 Aufgrund von Bautzen, der sehr langsam startet
+    # periodfactor = 3, helplinefactor = 0.0
+    # der Start
+    # Start: 201 xmax: 2021-07-19 09:20:31, ymax:   3387, duration: 528.7, ramprate: 0.19 %/s
+    # von: 19.07.2021 09:07:44 bis: 19.07.2021 09:34:47
+    # ist zu kurz, => Änderung des Algorithmus auf Last max statt Last letzter Punkt
     if 'loadramp' in startversuch['timing']:
         s = startversuch['timing']['loadramp'][-1]['start'].timestamp()
         e = startversuch['timing']['loadramp'][-1]['end'].timestamp()
@@ -17,7 +23,8 @@ def loadramp_edge_detect(fsm, startversuch, periodfactor=1.5, helplinefactor=0.8
             x0 = data.iloc[0]['datetime']
             y0 = 0.0
             x1 = data.iloc[-1]['datetime']
-            y1 = data.iloc[-1]['Power_PowerAct'] * helplinefactor
+            #y1 = data.iloc[-1]['Power_PowerAct'] * helplinefactor
+            y1 = max(data['Power_PowerAct']) * helplinefactor
             data['helpline'] = data['Power_PowerAct'] + (x0 - data['datetime'])* (y1-y0)/(x1-x0) + y0
             
             point = data['helpline'].idxmax()
