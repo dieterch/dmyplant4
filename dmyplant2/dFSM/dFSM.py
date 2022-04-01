@@ -538,7 +538,7 @@ class msgFSM:
         count = 0
         while True:
             try:
-                self.message_queue = self.fill_message_queue(self.message_queue, it, 5*60)
+                self.message_queue = self.fill_message_queue(self.message_queue, it, 30)
                 self.debug_msg(self.message_queue)
                 self.debug_msg(self.extra_messages)
                 count += len(self.message_queue)
@@ -571,7 +571,6 @@ class msgFSM:
                 #tqdm disturbes the VSC Debugger - disable for debug purposes please.     
                 for i,msg in tqdm(self._messages.iterrows(), total=self._messages.shape[0], ncols=80, mininterval=1, unit=' messages', desc="FSM"):
                     self.dorun1(msg)
-
     
     def dorun1(self, msg):
         self.svec.msg = msg
@@ -600,17 +599,20 @@ class msgFSM:
         if not self.results['starts'][sno]['run2']:
             self.results['starts'][sno]['run2'] = True
             #startversuch['run2'] = True
-            data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch, periodfactor=3, helplinefactor=0.8)
-            if not data.empty:
-                # update timings accordingly
-                self.results['starts'][sno]['timing']['loadramp'][0]['end'] = xmax
-                if 'targetoperation' in self.results['starts'][sno]['timing']:
-                    self.results['starts'][sno]['timing']['targetoperation'][0]['start'] = xmax
-                self.results['starts'][sno]['targetload'] = ymax
-                self.results['starts'][sno]['ramprate'] = ramprate / ratedload * 100.0
-                phases = list(self.results['starts'][sno]['timing'].keys())
-                self._harvest_timings(self.results['starts'][sno], phases)
-                #print(f"Start: {startversuch['no']:3d} xmax: {xmax}, ymax: {ymax:6.0f}, duration: {duration:5.1f}, ramprate: {ramprate / ratedload * 100.0:4.2f} %/s")
+            try:
+                data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch, periodfactor=3, helplinefactor=0.8)
+                if not data.empty:
+                    # update timings accordingly
+                    self.results['starts'][sno]['timing']['loadramp'][0]['end'] = xmax
+                    if 'targetoperation' in self.results['starts'][sno]['timing']:
+                        self.results['starts'][sno]['timing']['targetoperation'][0]['start'] = xmax
+                    self.results['starts'][sno]['targetload'] = ymax
+                    self.results['starts'][sno]['ramprate'] = ramprate / ratedload * 100.0
+                    phases = list(self.results['starts'][sno]['timing'].keys())
+                    self._harvest_timings(self.results['starts'][sno], phases)
+                    #print(f"Start: {startversuch['no']:3d} xmax: {xmax}, ymax: {ymax:6.0f}, duration: {duration:5.1f}, ramprate: {ramprate / ratedload * 100.0:4.2f} %/s")
+            except Exception as err:
+                print(err)
 
 
 #********************************************************
