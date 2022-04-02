@@ -352,6 +352,9 @@ class Engine:
                 result.append({item:False})
         return result
 
+    def dataItemsCyl(self, name):
+        return [name.replace('*',f"{i+1:02d}") for i in range(self.Cylinders)]
+
     @property
     def time_since_last_server_contact(self):
         """get time since last Server contact

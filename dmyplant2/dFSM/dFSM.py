@@ -82,8 +82,7 @@ class State:
             vector = self.update_vector_on_statechange(vector)
         return [vector]
 
-# SpezialFall Loadram, hier wird ein berechneter Statechange ermittelt.
-class LoadrampState(State):
+class LoadrampStateV2(State):
     def __init__(self, statename, transferfun_list, operator, e):
         self._e = e
         self._operator = operator
@@ -93,15 +92,8 @@ class LoadrampState(State):
         super().__init__(statename, transferfun_list)
 
     def trigger_on_vector(self, vector):
-    
         vectorlist = super().trigger_on_vector(vector)
-        vector = vectorlist[0]
-
-        # one of the triggerfunctions has already changed state, can occor, when some event
-        # happens within the loadramp phase. 
-        if vector.statechange: 
-            self._full_load_timestamp = None
-            return [vector]
+        vector = vectorlist[0]        
 
         # calculate the end of ramp time if it isnt defined.
         if self._full_load_timestamp == None:
@@ -111,30 +103,68 @@ class LoadrampState(State):
         # use the message target load reached to make the trigger more accurate. (This message isnt available on all engines.)
         if vector.msg['name'] == '9047':
             self._full_load_timestamp = vector.msg['timestamp']
+            self._operator.replace_message(vector.msg)
 
-        # trigger on the firstmessage after the calcalulated event time, switch to 'targetoperation'
-        # insert a virtual message exactly at _full_load_timestamp
-        if self._full_load_timestamp != None and int(vector.msg['timestamp']) >= self._full_load_timestamp:
+        if vector.statechange:
+            self._full_load_timestamp = None
 
-                # change the state, because we do the statechange in vector 1 
-                vector2 = self.update_vector_on_statechange(vector)
-                vector2.currentstate = 'targetoperation'
-                
-                # copy state vector, fill out the relevant data and trigger to tagetopeartion
-                vector1 = copy.deepcopy(vector2)
-                vector1.msg = {'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600}
-                vector1.statechange = True
-                vector1.currentstate = 'targetoperation'
-                vector1.currentstate_start = pd.to_datetime(self._full_load_timestamp * 1e6)
-
-                # Reset the State for the next event.
-                self._full_load_timestamp = None
-
-                # and deliver both events back to the main loop
-                return [vector1,vector2]
-        
-        # just pass through state vectors in all other cases.
         return [vector]
+
+
+# SpezialFall Loadram, hier wird ein berechneter Statechange ermittelt.
+# class LoadrampState(State):
+#     def __init__(self, statename, transferfun_list, operator, e):
+#         self._e = e
+#         self._operator = operator
+#         self._full_load_timestamp = None
+#         self._loadramp = self._e['rP_Ramp_Set'] or 0.625 # %/sec
+#         self._default_ramp_duration = 100.0 / self._loadramp
+#         super().__init__(statename, transferfun_list)
+
+#     def trigger_on_vector(self, vector):
+    
+#         vectorlist = super().trigger_on_vector(vector)
+#         vector = vectorlist[0]
+
+#         # one of the triggerfunctions has already changed state, can occor, when some event
+#         # happens within the loadramp phase. 
+#         if vector.statechange: 
+#             self._full_load_timestamp = None
+#             return [vector]
+
+#         # calculate the end of ramp time if it isnt defined.
+#         if self._full_load_timestamp == None:
+#             self._full_load_timestamp = int((vector.currentstate_start.timestamp() + self._default_ramp_duration) * 1e3)
+#             self._operator.inject_message({'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600})
+
+#         # use the message target load reached to make the trigger more accurate. (This message isnt available on all engines.)
+#         if vector.msg['name'] == '9047':
+#             self._full_load_timestamp = vector.msg['timestamp']
+
+#         # trigger on the firstmessage after the calcalulated event time, switch to 'targetoperation'
+#         # insert a virtual message exactly at _full_load_timestamp
+#         if self._full_load_timestamp != None and int(vector.msg['timestamp']) >= self._full_load_timestamp:
+
+#                 # change the state, because we do the statechange in vector 1 
+#                 vector2 = self.update_vector_on_statechange(vector)
+#                 vector2.currentstate = 'targetoperation'
+                
+#                 # copy state vector, fill out the relevant data and trigger to tagetopeartion
+#                 vector1 = copy.deepcopy(vector2)
+#                 vector1.msg = {'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600}
+#                 vector1.statechange = True
+#                 vector1.currentstate = 'targetoperation'
+#                 vector1.currentstate_start = pd.to_datetime(self._full_load_timestamp * 1e6)
+
+#                 # Reset the State for the next event.
+#                 self._full_load_timestamp = None
+
+#                 # and deliver both events back to the main loop
+#                 return [vector2,vector1]
+        
+#         # just pass through state vectors in all other cases.
+#         return [vector]
+
 class FSM:
     def __init__(self, operator, e):
         self._operator = operator
@@ -166,14 +196,15 @@ class FSM:
                     { 'trigger':'1235 Generator CB closed', 'new-state':'loadramp'},                
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'}
                     ]),             
-                'loadramp': LoadrampState('loadramp',[
+                'loadramp': LoadrampStateV2('loadramp',[
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'},
-                    #{ 'trigger':'1232 Request module off', 'new-state':'rampdown'},
-                    { 'trigger':'Calculated statechange', 'new-state':'targetoperation'},
+                    #{ 'trigger':'1232 Request module off', 'new-state':'rampdown'}, # lead to an error at Bautzen ???
+                    #{ 'trigger':'Calculated statechange', 'new-state':'targetoperation'}, #enable with run1 & LoadrampState
+                    { 'trigger':'9047 Target load reached', 'new-state':'targetoperation'},#enable with run1, enable with run1V2 & LoadrampStateV2
                     ], operator, e),             
                 'targetoperation': State('targetoperation',[
                     { 'trigger':'1232 Request module off', 'new-state':'rampdown'},
-                    { 'trigger':'1239 Group alarm - shut down', 'new-state':'runout'},
+                    #{ 'trigger':'1239 Group alarm - shut down', 'new-state':'rampdown'},
                     { 'trigger':'1236 Generator CB opened', 'new-state':'idle'},
                     ]),
                 'rampdown': State('rampdown',[
@@ -320,7 +351,38 @@ class msgFSM:
         self.count_messages = self._messages.shape[0]
 
     def inject_message(self, msg):
+        """Puts a message into the extra_messages list.
+        The State Machine Operator Class then injects this message
+        into the main message stream at the right timestamp
+        Args:
+            msg (dict or pandas Row): both type need to include the message fields timestamp, name, message
+        """
         self.extra_messages.append(msg)
+
+    def replace_message(self, msg):
+        """Replaces a messgae with a certain name, if 
+        a messge of the same name is already in the extra_messages list
+        ans the operator has not consumed it yet.
+        purpose: some later XT4 Versions have "9047 target load reached" messages,
+        some earlier do not. if the message is available, the calculated message is replaced
+        by the diane message and timing.
+
+        Args:
+            msg (dict or pandas Row): both type need to include the message fields timestamp, name, message
+        """
+        msg['message'] += ' (replaced)' #rename message in message_queue, msg is a reference to the original msg.
+        local_extra_messages = []
+        for m in self.extra_messages:
+            if (m['name'] == '9047' and m['message'] == 'Target load reached (calculated)'):
+                pass #remove message from extra_messages list
+            else:
+                local_extra_messages.append(m) # keep all other messages in place
+        self.extra_messages = local_extra_messages
+
+        # self.extra_messages = [
+        #     msg if (m['name'] == '9047' and m['message'] == 'Target load reached (calculated)') else m 
+        #     for m in self.extra_messages
+        #     ]
 
     def msgtxt(self, msg, idx=0):
         return f"{idx:>06} {msg['severity']} {msg['timestamp']} {pd.to_datetime(int(msg['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')}  {msg['name']} {msg['message']}"
@@ -482,106 +544,176 @@ class msgFSM:
             }
             self.results['runlog'].append(_logline)
 
-    def fill_message_queue(self, mq, d, dt):
-        """fills a message queue with dt time lenght
+    def fill_message_queue(self, message_queue, messages_iterator, dminutes=30):
+        """fills te message queue messages
+        until dminutes later. the message_queue enables to inject messages 
+        at a later time or to investigate the timing of e.g.trips.
 
         Args:
-            mq (list): message que
-            d (iterator): message iterator variable
+            message_queue (list): message queue
+            messages_iterator (iterator): messages generator
             dt (int): delta t in min
 
         Returns:
-            _type_: _description_
+            message_queue : message que
         """
-        i, m = next(d)
+        i, m = next(messages_iterator)
         t0 = m['timestamp'] 
         #print('von: ',t0, pd.to_datetime(t0 * 1000000))
-        dtns = dt*60*1000
+        dminutes_ns = dminutes*60*1000
         #print('bis: ',t0 + dtns, pd.to_datetime((t0 + dtns) * 1000000))
         mit = m
-        while mit['timestamp'] < t0 + dtns:
-            mq.append(mit)
+        while mit['timestamp'] < t0 + dminutes_ns:
+            message_queue.append(mit)
             try:
-                i, mit = next(d)
+                i, mit = next(messages_iterator)
             except StopIteration:
-                mq.pop()
+                message_queue.pop()
                 break
-        mq.append(mit)
-        return mq
+        message_queue.append(mit)
+        return message_queue
 
-    def merge_extra_messages(self, mq, em):
-        emc = em.copy()
-        max_timestamp = max([ts['timestamp'] for ts in mq])
+    def merge_extra_messages(self, messages_queue, extra_messages):
+        """extra messages are generated by special state trigger functions,
+        which e.g. estimate missing messages like '9047 target load reached'
+        this message is not available on all diane versions, but needed to
+        operate the statemachine. merge is injecting the extra messages
+        exactly at the right timestamp into the message_que.
+
+        Args:
+            messages_queue (_type_): _description_
+            extra_messages (_type_): _description_
+
+        Returns:
+            tuple: (messages_queue, extra_messages)
+        """
+        emc = extra_messages.copy()
+        max_timestamp = max([ts['timestamp'] for ts in messages_queue])
         for m in emc:
             if m['timestamp'] < max_timestamp:
-                mq.append(m)
-                em.remove(m)
-        mq.sort(key=lambda x: x['timestamp'], reverse=False)
-        return mq, em
+                messages_queue.append(m)
+                extra_messages.remove(m)
+        messages_queue.sort(key=lambda x: x['timestamp'], reverse=False)
+        return messages_queue, extra_messages
 
     def consume_message_queue(self, message_queue):
+        """runs the statemchine with messages from the message_que.
+
+        Args:
+            message_queue (list): the messages to consume by the state machine
+
+        Returns:
+            list: empty message_queue, cause all messages are consumed.
+        """
         for msg in message_queue:
-            self.dorun1(msg)
-        return []
-
-    def debug_msg(self, msgque, max=10):
-        return
-        print(len(msgque))
-        for msg in msgque[:max]:
-            print(f"{msg['timestamp']} {pd.to_datetime(msg['timestamp'] * 1000000)} {msg['name']} {msg['message']}")
-        print()
-
-    def new_run1(self, enforce=False, silent=False ,successtime=300):
-        it = self._messages.iterrows()
-        self.message_queue = []
-        #pbar = tqdm(total=len(self._messages), ncols=80, mininterval=1, unit=' messages', desc="FSM")
-        count = 0
-        while True:
-            try:
-                self.message_queue = self.fill_message_queue(self.message_queue, it, 30)
-                self.debug_msg(self.message_queue)
-                self.debug_msg(self.extra_messages)
-                count += len(self.message_queue)
-                #pbar.update(count)
-
-                self.message_queue, self.extra_messages = self.merge_extra_messages(self.message_queue, self.extra_messages)
-                self.debug_msg(self.message_queue)
-                self.debug_msg(self.extra_messages)
-
-                self.message_queue = self.consume_message_queue(self.message_queue)
-                self.debug_msg(self.message_queue)
-            except StopIteration:
-                print(f"{len(self._messages)}, {count} messages scanned.")
-                break
-        #pbar.close()        
-
-    def call_trigger_states(self):
-        return self.states[self.svec.currentstate].trigger_on_vector(self.svec)
-
-    ## FSM Entry Point.
-    def run1(self, enforce=False, silent=False ,successtime=300):
-        self._successtime = successtime
-        if len(self.results['starts']) == 0 or enforce:
-            self.init_results()
-
-            if silent:
-                for i, msg in self._messages.iterrows():
-                    self.dorun1(msg)
-            else:
-                #tqdm disturbes the VSC Debugger - disable for debug purposes please.     
-                for i,msg in tqdm(self._messages.iterrows(), total=self._messages.shape[0], ncols=80, mininterval=1, unit=' messages', desc="FSM"):
-                    self.dorun1(msg)
-    
-    def dorun1(self, msg):
-        self.svec.msg = msg
-        retsv = self.call_trigger_states()
-        for sv in retsv:   
+            self.svec.msg = msg
+            retsv = self.call_trigger_states()
+            sv = retsv[0] # die Liste ist ein Überbleibsel von Version 1   
             self.svec = sv
-            #print(f"{len(self.results['runlogdetail']):5} {sv}")
             self.results['runlogdetail'].append(copy.deepcopy(sv))
             self._fsm_Service_selector()
             self._fsm_collect_alarms()
             self._fsm_Operating_Cycle()
+        message_queue = []
+        return message_queue
+
+    def debug_msg(self, titel, msgque, max=100000, debug=False):
+        if debug:
+            print(titel, len(msgque), ' items')
+            for msg in msgque[:max]:
+                print(f"{msg['timestamp']} {pd.to_datetime(msg['timestamp'] * 1000000)} {msg['name']} {msg['severity']} {msg['message']}")
+            print()
+
+    def run1_V2(self, enforce=False, silent=False ,debug= False, successtime=300):
+        """Statemachine Operator Entry functions Version2 - using messages queues 
+
+        Args:
+            enforce (bool, optional): if True runs statemachine even if results are already available. Defaults to False.
+            silent (bool, optional): do not show progress bar if True. Defaults to False.
+            successtime (int, optional): How long an operation cycle needs to stay in state targetoperation to be assessed successful. Defaults to 300.
+        """        
+        self._successtime = successtime
+        if len(self.results['starts']) == 0 or enforce:
+            self.init_results()
+
+        it = self._messages.iterrows()
+        self.message_queue = []
+        if not silent:
+            pbar = tqdm(total=len(self._messages), ncols=80, mininterval=1, unit=' messages', desc="FSM")
+        while True:
+            try:
+                self.message_queue = self.fill_message_queue(self.message_queue, it, dminutes=10)
+                self.debug_msg('message queue after fill:',self.message_queue, debug=debug)
+                self.debug_msg('extra messages after fill:',self.extra_messages, debug=debug)
+
+                # dry run
+                vecstore = copy.deepcopy(self.svec) # store statevector
+                for msg in self.message_queue:
+                    self.svec.msg = msg
+                    retsv = self.call_trigger_states()
+                    sv = retsv[0] # die Liste ist ein Überbleibsel von Version 1   
+                    self.svec = sv
+                self.svec = vecstore # restore statevector
+
+                self.debug_msg('message queue after fill & FSM zero run:',self.message_queue, debug=debug)
+                self.debug_msg('extra messages after fill & FSM zero run:',self.extra_messages, debug=debug)
+                if not silent:
+                    pbar.update(len(self.message_queue))
+
+                self.message_queue, self.extra_messages = self.merge_extra_messages(self.message_queue, self.extra_messages)
+                self.debug_msg('message queue after merge:',self.message_queue, debug=debug)
+                self.debug_msg('extra messages after merge:',self.extra_messages, debug=debug)
+
+                self.message_queue = self.consume_message_queue(self.message_queue)
+                self.debug_msg('message queue after consume:',self.message_queue, debug=debug)
+            except StopIteration:
+                if debug:
+                    print(f"{len(self._messages)} messages scanned.")
+                break
+        if not silent:
+            pbar.close()        
+
+    def call_trigger_states(self):
+        """helper to call vectorized version of state trigger functions.
+
+        Returns:
+            string: current state of the statemachine
+        """
+        return self.states[self.svec.currentstate].trigger_on_vector(self.svec)
+
+    # ## FSM Entry Point.
+    # def run1(self, enforce=False, silent=False ,successtime=300):
+    #     """Statemachine Operator Entry functions
+
+    #     Args:
+    #         enforce (bool, optional): if True runs statemachine even if results are already available. Defaults to False.
+    #         silent (bool, optional): do not show progress bar if True. Defaults to False.
+    #         successtime (int, optional): How long an operation cycle needs to stay in state targetoperation to be assessed successful. Defaults to 300.
+    #     """
+    #     self._successtime = successtime
+    #     if len(self.results['starts']) == 0 or enforce:
+    #         self.init_results()
+
+    #         if silent:
+    #             for i, msg in self._messages.iterrows():
+    #                 self._dorun1(msg)
+    #         else:
+    #             #tqdm disturbes the VSC Debugger - disable for debug purposes please.     
+    #             for i,msg in tqdm(self._messages.iterrows(), total=self._messages.shape[0], ncols=80, mininterval=1, unit=' messages', desc="FSM"):
+    #                 self._dorun1(msg)
+    
+    # def _dorun1(self, msg):
+    #     """helper function for run1
+    #     """
+    #     self.svec.msg = msg
+    #     retsv = self.call_trigger_states()
+    #     for sv in retsv:   
+    #         self.svec = sv
+    #         #print(f"{len(self.results['runlogdetail']):5} {sv}")
+    #         self.results['runlogdetail'].append(copy.deepcopy(sv))
+    #         self._fsm_Service_selector()
+    #         self._fsm_collect_alarms()
+    #         self._fsm_Operating_Cycle()
 
 ##########################################################
     def run2(self, silent=False):
@@ -616,84 +748,84 @@ class msgFSM:
 
 
 #********************************************************
-    def dorun2_old(self, index_list, startversuch):
-                ii = startversuch['no']
-                index_list.append(ii)
+    # def dorun2_old(self, index_list, startversuch):
+    #             ii = startversuch['no']
+    #             index_list.append(ii)
 
-                if not startversuch['run2']:
+    #             if not startversuch['run2']:
 
-                    data = dmyplant2.get_cycle_data2(self, startversuch, max_length=None, min_length=None, silent=True)
+    #                 data = dmyplant2.get_cycle_data2(self, startversuch, max_length=None, min_length=None, silent=True)
 
-                    if not data.empty:
+    #                 if not data.empty:
 
-                        pl, _ = dmyplant2.detect_edge_left(data, 'Power_PowerAct', startversuch)
-                        #pr, _ = detect_edge_right(data, 'Power_PowerAct', startversuch)
-                        #sl, _ = detect_edge_left(data, 'Various_Values_SpeedAct', startversuch)
-                        #sr, _ = detect_edge_right(data, 'Various_Values_SpeedAct', startversuch)
+    #                     pl, _ = dmyplant2.detect_edge_left(data, 'Power_PowerAct', startversuch)
+    #                     #pr, _ = detect_edge_right(data, 'Power_PowerAct', startversuch)
+    #                     #sl, _ = detect_edge_left(data, 'Various_Values_SpeedAct', startversuch)
+    #                     #sr, _ = detect_edge_right(data, 'Various_Values_SpeedAct', startversuch)
 
-                        self.results['starts'][ii]['title'] = f"{self._e} ----- Start {ii} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
-                        #sv_lines = {k:(startversuch[k] if k in startversuch else np.NaN) for k in filterFSM.vertical_lines_times]}
-                        sv_lines = [v for v in startversuch[filterFSM.vertical_lines_times]]
-                        start = startversuch['starttime'];
+    #                     self.results['starts'][ii]['title'] = f"{self._e} ----- Start {ii} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
+    #                     #sv_lines = {k:(startversuch[k] if k in startversuch else np.NaN) for k in filterFSM.vertical_lines_times]}
+    #                     sv_lines = [v for v in startversuch[filterFSM.vertical_lines_times]]
+    #                     start = startversuch['starttime'];
                         
-                        # lade die in run1 gesammelten Daten in ein DataFrame, ersetze NaN Werte mit 0
-                        backup = {}
-                        svdf = pd.DataFrame(sv_lines, index=filterFSM.vertical_lines_times, columns=['FSM'], dtype=np.float64).fillna(0)
-                        svdf['RUN2'] = svdf['FSM']
+    #                     # lade die in run1 gesammelten Daten in ein DataFrame, ersetze NaN Werte mit 0
+    #                     backup = {}
+    #                     svdf = pd.DataFrame(sv_lines, index=filterFSM.vertical_lines_times, columns=['FSM'], dtype=np.float64).fillna(0)
+    #                     svdf['RUN2'] = svdf['FSM']
 
-                        # intentionally excluded - Dieter 1.3.2022
-                        #if svdf.at['speedup','FSM'] > 0.0:
-                        #        svdf.at['speedup','RUN2'] = sl.loc.timestamp() - start.timestamp() - np.cumsum(svdf['RUN2'])['starter']
-                        #        svdf.at['idle','RUN2'] = svdf.at['idle','FSM'] - (svdf.at['speedup','RUN2'] - svdf.at['speedup','FSM'])
-                        if svdf.at['loadramp','FSM'] > 0.0:
-                                calc_loadramp = pl.loc.timestamp() - start.timestamp() - np.cumsum(svdf['RUN2'])['synchronize']
-                                svdf.at['loadramp','RUN2'] = calc_loadramp
+    #                     # intentionally excluded - Dieter 1.3.2022
+    #                     #if svdf.at['speedup','FSM'] > 0.0:
+    #                     #        svdf.at['speedup','RUN2'] = sl.loc.timestamp() - start.timestamp() - np.cumsum(svdf['RUN2'])['starter']
+    #                     #        svdf.at['idle','RUN2'] = svdf.at['idle','FSM'] - (svdf.at['speedup','RUN2'] - svdf.at['speedup','FSM'])
+    #                     if svdf.at['loadramp','FSM'] > 0.0:
+    #                             calc_loadramp = pl.loc.timestamp() - start.timestamp() - np.cumsum(svdf['RUN2'])['synchronize']
+    #                             svdf.at['loadramp','RUN2'] = calc_loadramp
 
-                                # collect run2 results.
-                                backup['loadramp'] = svdf.at['loadramp','FSM'] # alten Wert merken
-                                self.results['starts'][ii]['loadramp'] = calc_loadramp
+    #                             # collect run2 results.
+    #                             backup['loadramp'] = svdf.at['loadramp','FSM'] # alten Wert merken
+    #                             self.results['starts'][ii]['loadramp'] = calc_loadramp
 
-                        with warnings.catch_warnings():
-                            warnings.simplefilter("ignore")
-                            calc_maxload = pl.val
-                            try:
-                                calc_ramp = (calc_maxload / self._e['Power_PowerNominal']) * 100 / svdf.at['loadramp','RUN2']
-                            except ZeroDivisionError as err:
-                                logging.warning(f"calc_ramp: {str(err)}")
-                                calc_ramp = np.NaN
-                            # doppelte Hosenträger ... hier könnte man ein wenig aufräumen :-)
-                            if not np.isfinite(calc_ramp) :
-                                calc_ramp = np.NaN
+    #                     with warnings.catch_warnings():
+    #                         warnings.simplefilter("ignore")
+    #                         calc_maxload = pl.val
+    #                         try:
+    #                             calc_ramp = (calc_maxload / self._e['Power_PowerNominal']) * 100 / svdf.at['loadramp','RUN2']
+    #                         except ZeroDivisionError as err:
+    #                             logging.warning(f"calc_ramp: {str(err)}")
+    #                             calc_ramp = np.NaN
+    #                         # doppelte Hosenträger ... hier könnte man ein wenig aufräumen :-)
+    #                         if not np.isfinite(calc_ramp) :
+    #                             calc_ramp = np.NaN
 
-                            backup_cumstarttime = np.cumsum(svdf['FSM'])['loadramp']
-                            calc_cumstarttime = np.cumsum(svdf['RUN2'])['loadramp']
-                        svdf = pd.concat([
-                                svdf, 
-                                pd.DataFrame.from_dict(
-                                        {       'maxload':['-',calc_maxload],
-                                                'ramprate':['-',calc_ramp],
-                                                'cumstarttime':[backup_cumstarttime, calc_cumstarttime]
-                                        }, 
-                                        columns=['FSM','RUN2'],
-                                        orient='index')]
-                                )
-                        #display(HTML(svdf.round(2).T.to_html(escape=False)))
+    #                         backup_cumstarttime = np.cumsum(svdf['FSM'])['loadramp']
+    #                         calc_cumstarttime = np.cumsum(svdf['RUN2'])['loadramp']
+    #                     svdf = pd.concat([
+    #                             svdf, 
+    #                             pd.DataFrame.from_dict(
+    #                                     {       'maxload':['-',calc_maxload],
+    #                                             'ramprate':['-',calc_ramp],
+    #                                             'cumstarttime':[backup_cumstarttime, calc_cumstarttime]
+    #                                     }, 
+    #                                     columns=['FSM','RUN2'],
+    #                                     orient='index')]
+    #                             )
+    #                     #display(HTML(svdf.round(2).T.to_html(escape=False)))
 
-                        # collect run2 results.
-                        self.results['starts'][ii]['maxload'] = calc_maxload
-                        self.results['starts'][ii]['ramprate'] = calc_ramp
-                        backup['cumstarttime'] = backup_cumstarttime
-                        self.results['starts'][ii]['cumstarttime'] = calc_cumstarttime
+    #                     # collect run2 results.
+    #                     self.results['starts'][ii]['maxload'] = calc_maxload
+    #                     self.results['starts'][ii]['ramprate'] = calc_ramp
+    #                     backup['cumstarttime'] = backup_cumstarttime
+    #                     self.results['starts'][ii]['cumstarttime'] = calc_cumstarttime
 
-                        self.results['starts'][ii]['backup'] = backup
-                        self.results['starts'][ii]['run2'] = True
+    #                     self.results['starts'][ii]['backup'] = backup
+    #                     self.results['starts'][ii]['run2'] = True
 
-    def run2_old(self, rda, silent=False):
-        index_list = []
-        if silent:
-            for n, startversuch in rda.iterrows():
-                self.dorun2_old(index_list, startversuch)
-        else:
-            for n, startversuch in tqdm(rda.iterrows(), total=rda.shape[0], ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
-                self.dorun2_old(index_list, startversuch)
-        return pd.DataFrame([self.results['starts'][s] for s in index_list])
+    # def run2_old(self, rda, silent=False):
+    #     index_list = []
+    #     if silent:
+    #         for n, startversuch in rda.iterrows():
+    #             self.dorun2_old(index_list, startversuch)
+    #     else:
+    #         for n, startversuch in tqdm(rda.iterrows(), total=rda.shape[0], ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
+    #             self.dorun2_old(index_list, startversuch)
+    #     return pd.DataFrame([self.results['starts'][s] for s in index_list])

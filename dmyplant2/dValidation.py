@@ -88,8 +88,8 @@ class Validation:
         # create and initialise all Engine Instances
         self._engines = []
         if not cui_log:
-            pbar = tqdm(total=len(engines))
-            
+            pbar = tqdm(total=len(engines), ncols=80, mininterval=1, unit=' engines', desc="VAL Engines")
+
         for i, eng in enumerate(engines):
             try:
                 e = lengine.from_eng(mp, eng)
@@ -102,7 +102,7 @@ class Validation:
             if cui_log:
                 print(log)
             else:
-                pbar.update(i)
+                pbar.update()
 
         if not cui_log:
             pbar.close()
