@@ -1550,6 +1550,7 @@ class Engine:
         return np.around(1200.0 * self.Pmech_nominal / (self.engvol * self.Speed_nominal), decimals=1)
 
     def _calc_BMEP(self, p_Pel, p_Speed):
+        warnings.simplefilter('ignore')
         try:
             _bmep = 1200.0 * (p_Pel / self.Generator_Efficiency) / (self.engvol * p_Speed)
         except ZeroDivisionError:
