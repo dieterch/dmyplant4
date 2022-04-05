@@ -12,9 +12,10 @@ figures = {
     'actors' : [
     {'col':['Power_PowerAct'], 'ylim':(0,5000), 'color':'red', 'unit':'kW'},
     {'col':['Various_Values_SpeedAct'],'ylim': [0, 2500], 'color':'blue', 'unit':'rpm'},
-    {'col':['Ignition_ITPAvg'],'ylim': [0, 30], 'color':'magenta', 'unit':'°KW'},
-    {'col':['TecJet_Lambda1'],'ylim': [0, 3], 'color':'orange', 'unit':'-'},
-    {'col':['Various_Values_PosThrottle','Various_Values_PosTurboBypass'],'ylim': [-10, 110], 'color':['black','brown'], 'unit':'%'},
+    {'col':['Ignition_ITPAvg'],'ylim': [0, 30], 'color':'rgba(255,0,255,0.4)', 'unit':'°KW'},
+    {'col':['TecJet_Lambda1'],'ylim': [0, 3], 'color':'rgba(255,165,0,0.4)', 'unit':'-'},
+    {'col':['Various_Values_PosThrottle','Various_Values_PosTurboBypass'],'ylim': [-10, 110], 'color':['rgba(105,105,105,0.6)','rgba(165,42,42,0.4)'], 'unit':'%'},
+    #{'col':['Various_Values_PosThrottle','Various_Values_PosTurboBypass'],'ylim': [-10, 110], 'color':['rgba(255,255,255,0.4)','rgba(165,42,42,0.4)'], 'unit':'%'},
     #{'col':['Hyd_PressCrankCase'],'ylim': [-100, 100], 'color':'orange', 'unit':'mbar'},
     #{'col':['Hyd_PressOilDif'],'ylim': [0, 2], 'color':'black', 'unit': 'bar'},
     #{'col':['Hyd_PressOil'],'ylim': [0, 10], 'color':'brown', 'unit': 'bar'},

@@ -23,7 +23,7 @@ from dmyplant2.dPlot import (
     cvset)
 from dmyplant2.dFSM import (
     FSM, 
-    msgFSM, 
+    FSMOperator, 
     filterFSM, 
     FSM_splot,
     FSM_add_Notations,

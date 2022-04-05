@@ -24,7 +24,7 @@ from .dFSMPlot import (
 )
 from .dFSM import (
     FSM, 
-    msgFSM, 
+    FSMOperator, 
     filterFSM
 )
 from .dFSMFigures import figures

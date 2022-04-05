@@ -16,6 +16,18 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 #Various_Bits_CollAlarm
 class StateVector:
+    """Statevector Class holds the actual states of all statemachines
+    it kind of iterates through the FSM. Is a core data Structure for 
+    the FSMOperator and State Class.
+
+    a state shall be added for every stateinformation that is added to the
+    State Machine classes. FSMOperator fills the vector in its
+    functions 
+    FSMOperator._do_at_every_message and 
+    FSMOperator._do_at_every_statechange
+
+    pp() prettyprint state vector
+    """
     statechange = False
     startno = 0
     laststate = ''
@@ -57,6 +69,10 @@ currentstate_start: {self.currentstate_start}
 
 # States und Transferfunktionen, Sammeln von Statebezogenen Daten ... 
 class State:
+    """class state and its inherits
+    check if a transferfunction triggers a statechange based
+    on the transferfunction dict.
+    """
     def __init__(self, statename, transferfun_list):
         self._statename = statename
         self._transferfunctions = transferfun_list
@@ -83,6 +99,12 @@ class State:
         return [vector]
 
 class LoadrampStateV2(State):
+    """Inherits State and provides a calulated end of the loadramp
+    the Constructor takes 2 additional arguments comared to the base Class:
+
+    operator(FSMOperator class): points to the acting FSMOperator Instance
+    e (dmyplant2.dEngine.Engine): points to the currently analyzed Engine Instance
+    """
     def __init__(self, statename, transferfun_list, operator, e):
         self._e = e
         self._operator = operator
@@ -109,67 +131,59 @@ class LoadrampStateV2(State):
             self._full_load_timestamp = None
 
         return [vector]
+class FSM: #generic State Machine class
+    """base class for FSM Definitions
+    """
+    def __init__(self):
+        self._initial_state = None
+        self._states = None
+        {
+                'state1': State('state1',[
+                    { 'trigger':'1234 text', 'new-state': 'state2'},   # message name + text defines a trigger.          
+                    ]),
+                'state2': State('state2',[
+                    { 'trigger':'1234 text', 'new-state': 'state1'},   # message name + text defines a trigger.          
+                    ]),
+        }
 
+    @property
+    def initial_state(self):
+        return self._initial_state
 
-# SpezialFall Loadram, hier wird ein berechneter Statechange ermittelt.
-# class LoadrampState(State):
-#     def __init__(self, statename, transferfun_list, operator, e):
-#         self._e = e
-#         self._operator = operator
-#         self._full_load_timestamp = None
-#         self._loadramp = self._e['rP_Ramp_Set'] or 0.625 # %/sec
-#         self._default_ramp_duration = 100.0 / self._loadramp
-#         super().__init__(statename, transferfun_list)
+    @property
+    def states(self):
+        return self._states
 
-#     def trigger_on_vector(self, vector):
-    
-#         vectorlist = super().trigger_on_vector(vector)
-#         vector = vectorlist[0]
+    def dot(self, fn):
+        """Create a FSM Diagram of specified states in *.dot Format
+        Args:
+            fn : Filename
+        """
+        with open(fn, 'w') as f:
+            f.write("digraph G {\n")
+            f.write('    graph [rankdir=TB labelfontcolor=red fontname="monospace" nodesep=1 size="20,33"]\n')
+            f.write('    node [fontname="monospace" fontsize=10  shape="circle"]\n')
+            f.write('    edge [fontname="monospace" color="grey" fontsize=10]\n')
+            for s in self._states:
+                f.write(f'    {s.replace("-","")} [label="{s}"]\n')
+                for t in self._states[s]._transferfunctions:
+                    f.write(f'    {s.replace("-","")} -> {t["new-state"].replace("-","")} [label="{t["trigger"]}"]\n')
+            f.write("}\n")
 
-#         # one of the triggerfunctions has already changed state, can occor, when some event
-#         # happens within the loadramp phase. 
-#         if vector.statechange: 
-#             self._full_load_timestamp = None
-#             return [vector]
-
-#         # calculate the end of ramp time if it isnt defined.
-#         if self._full_load_timestamp == None:
-#             self._full_load_timestamp = int((vector.currentstate_start.timestamp() + self._default_ramp_duration) * 1e3)
-#             self._operator.inject_message({'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600})
-
-#         # use the message target load reached to make the trigger more accurate. (This message isnt available on all engines.)
-#         if vector.msg['name'] == '9047':
-#             self._full_load_timestamp = vector.msg['timestamp']
-
-#         # trigger on the firstmessage after the calcalulated event time, switch to 'targetoperation'
-#         # insert a virtual message exactly at _full_load_timestamp
-#         if self._full_load_timestamp != None and int(vector.msg['timestamp']) >= self._full_load_timestamp:
-
-#                 # change the state, because we do the statechange in vector 1 
-#                 vector2 = self.update_vector_on_statechange(vector)
-#                 vector2.currentstate = 'targetoperation'
-                
-#                 # copy state vector, fill out the relevant data and trigger to tagetopeartion
-#                 vector1 = copy.deepcopy(vector2)
-#                 vector1.msg = {'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600}
-#                 vector1.statechange = True
-#                 vector1.currentstate = 'targetoperation'
-#                 vector1.currentstate_start = pd.to_datetime(self._full_load_timestamp * 1e6)
-
-#                 # Reset the State for the next event.
-#                 self._full_load_timestamp = None
-
-#                 # and deliver both events back to the main loop
-#                 return [vector2,vector1]
-        
-#         # just pass through state vectors in all other cases.
-#         return [vector]
-
-class FSM:
+# the Statemachine Definitions:
+# devices
+class OilPumpFSM:
+    pass
+class ServiceSelectorFSM:
+    pass
+class onoffFSM:
+    pass
+class startstopFSM(FSM):
     def __init__(self, operator, e):
         self._operator = operator
         self._e = e
         self._initial_state = 'standstill'
+        self.start_timing_states =  ['startpreparation','starter','speedup','idle','synchronize','loadramp']
         self._states = {
                 'standstill': State('standstill',[
                     { 'trigger':'1231 Request module on', 'new-state': 'startpreparation'},            
@@ -222,36 +236,13 @@ class FSM:
                 ])
             }
 
-    @property
-    def initial_state(self):
-        return self._initial_state
-
-    @property
-    def states(self):
-        return self._states
-
-    def dot(self, fn):
-        """Create a FSM Diagram of specified states in *.dot Format
-        Args:
-            fn : Filename
-        """
-        with open(fn, 'w') as f:
-            f.write("digraph G {\n")
-            f.write('    graph [rankdir=TB labelfontcolor=red fontname="monospace" nodesep=1 size="20,33"]\n')
-            f.write('    node [fontname="monospace" fontsize=10  shape="circle"]\n')
-            f.write('    edge [fontname="monospace" color="grey" fontsize=10]\n')
-            for s in self._states:
-                f.write(f'    {s.replace("-","")} [label="{s}"]\n')
-                for t in self._states[s]._transferfunctions:
-                    f.write(f'    {s.replace("-","")} -> {t["new-state"].replace("-","")} [label="{t["trigger"]}"]\n')
-            f.write("}\n")
-
-
+####################################
+#TODO: move filetrfsm into the statedefinitions
 class filterFSM:
     run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','targetoperation','rampdown','coolrun','runout','count_alarms', 'count_warnings']
     vertical_lines_times = ['startpreparation','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
 
-class msgFSM:
+class FSMOperator:
     def __init__(self, e, p_from = None, p_to=None, skip_days=None, frompickle='NOTIMPLEMENTED'):
         self._e = e
         self._successtime = 0 #success, when targetoperation is longer than xx seconds
@@ -265,15 +256,15 @@ class msgFSM:
         #self._pre_period = 0 #sec 'prerun' in data download Start before cycle start event.
         #self._post_period = 0 #sec 'postrun' in data download Start after cycle stop event.
 
-        fsmStates = FSM(self, self._e)
-        fsmStates.dot('FSM.dot')
-        self.states = fsmStates.states
+        self.statesHandler = startstopFSM(self, self._e)
+        self.statesHandler.dot('FSM.dot')
+        self.states = self.statesHandler.states
 
         self.svec = StateVector()
         self.svec.statechange = True
         self.svec.laststate = 'init'
         self.svec.laststate_start = self.first_message
-        self.svec.currentstate = fsmStates.initial_state
+        self.svec.currentstate = self.statesHandler.initial_state
         self.svec.currentstate_start = self.first_message
         self.svec.in_operation = 'off'
         self.svec.service_selector = '???'
@@ -423,7 +414,10 @@ class msgFSM:
 
 #################################################################################################################
 ### die Finite State Machines:
-    def _fsm_Service_selector(self):
+###
+### this code will be executed on every message:
+    def _do_at_every_message(self):
+        #Service_selector
         if self.svec.msg['name'] == '1225 Service selector switch Off'[:4]:
             self.svec.service_selector = 'OFF'
         if self.svec.msg['name'] == '1226 Service selector switch Manual'[:4]:
@@ -431,7 +425,7 @@ class msgFSM:
         if self.svec.msg['name'] == '1227 Service selector switch Automatic'[:4]:
             self.svec.service_selector = 'AUTO'
 
-    def _fsm_collect_alarms(self):
+        #collect_alarms
         key = 'starts' if self.svec.in_operation == 'on' else 'stops'
         if self.svec.msg['severity'] == 800:
             self.results[key][-1]['alarms'].append({
@@ -444,106 +438,116 @@ class msgFSM:
                 'msg': self.svec.msg
                 })
 
+
     def _harvest_timings(self, sv, phases):
+        """calculates state phase durations from state switch Timestamps
+        is called at Run_1 and after changed to the Timestamps in Run_xx.
+        calculates the cumulated starttime 
+
+        Args:
+            sv (dict): dict with data for a start attempt
+            phases (list): List of state names to collect.
+        """
         durations = { ph:pd.Timedelta(sv['timing'][ph][-1]['end'] - sv['timing'][ph][-1]['start']).total_seconds() for ph in phases}
-        durations['cumstarttime'] = sum([v for k,v in durations.items() if k in ['startpreparation','starter','speedup','idle','synchronize','loadramp']])
+        durations['cumstarttime'] = sum([v for k,v in durations.items() if k in self.statesHandler.start_timing_states])
         self.results['starts'][sv['no']].update(durations)
 
-    def _fsm_Operating_Cycle(self):
-        if self.svec.statechange:
-            if self.svec.currentstate == 'startpreparation':
-                self.results['stops'][-1]['endtime'] = self.svec.currentstate_start
-                self.results['stops'][-1]['count_alarms'] = len(self.results['stops'][-1]['alarms'])
-                self.results['stops'][-1]['count_warnings'] = len(self.results['stops'][-1]['warnings'])
-                # apends a new record to the Starts list.
-                self.results['starts'].append({
-                    'run2':False,
-                    'no':self.results['starts_counter'],
-                    'success': False,
-                    'mode':self.svec.service_selector,
-                    'starttime': self.svec.currentstate_start,
-                    'endtime': pd.Timestamp(0),
-                    'cumstarttime': pd.Timedelta(0),
-                    'startpreparation':np.nan,
-                    'starter':np.nan,
-                    'speedup':np.nan,
-                    'idle':np.nan,
-                    'synchronize':np.nan,
-                    'loadramp':np.nan,
-                    'targetoperation':np.nan,
-                    'rampdown':np.nan,
-                    'coolrun':np.nan,
-                    'runout':np.nan,
-                    'timing': {},
-                    'alarms': [],
-                    'warnings': [],
-                    'targetload': np.nan,
-                    'ramprate': np.nan
-                })
-                self.results['starts_counter'] += 1 # index for next start
-                self.svec.startno = self.results['starts_counter']
-                self.svec.in_operation = 'on'
-            elif self.svec.in_operation == 'on': # and actstate != FSM.initial_state:
-                self.results['starts'][-1]['mode'] = self.svec.service_selector
-                rec = {'start':self.svec.laststate_start, 'end':self.svec.currentstate_start}
-                if not self.svec.laststate in self.results['starts'][-1]['timing']:
-                    self.results['starts'][-1]['timing'][self.svec.laststate]=[rec]
-                else:
-                    self.results['starts'][-1]['timing'][self.svec.laststate].append(rec)
+### this code is called at every change of states
+    def _do_at_every_statechange(self):
+        if self.svec.currentstate == 'startpreparation':
+            self.results['stops'][-1]['endtime'] = self.svec.currentstate_start
+            self.results['stops'][-1]['count_alarms'] = len(self.results['stops'][-1]['alarms'])
+            self.results['stops'][-1]['count_warnings'] = len(self.results['stops'][-1]['warnings'])
+            # apends a new record to the Starts list.
+            self.results['starts'].append({
+                'run2':False,
+                'no':self.results['starts_counter'],
+                'success': False,
+                'mode':self.svec.service_selector,
+                'starttime': self.svec.currentstate_start,
+                'endtime': pd.Timestamp(0),
+                'cumstarttime': pd.Timedelta(0),
+                'startpreparation':np.nan,
+                'starter':np.nan,
+                'speedup':np.nan,
+                'idle':np.nan,
+                'synchronize':np.nan,
+                'loadramp':np.nan,
+                'targetoperation':np.nan,
+                'rampdown':np.nan,
+                'coolrun':np.nan,
+                'runout':np.nan,
+                'timing': {},
+                'alarms': [],
+                'warnings': [],
+                'targetload': np.nan,
+                'ramprate': np.nan
+            })
+            self.results['starts_counter'] += 1 # index for next start
+            self.svec.startno = self.results['starts_counter']
+            self.svec.in_operation = 'on'
+        elif self.svec.in_operation == 'on': # and actstate != FSM.initial_state:
+            self.results['starts'][-1]['mode'] = self.svec.service_selector
+            rec = {'start':self.svec.laststate_start, 'end':self.svec.currentstate_start}
+            if not self.svec.laststate in self.results['starts'][-1]['timing']:
+                self.results['starts'][-1]['timing'][self.svec.laststate]=[rec]
+            else:
+                self.results['starts'][-1]['timing'][self.svec.laststate].append(rec)
 
-            if self.svec.currentstate == 'standstill':
-                if self.svec.in_operation == 'on':
-                    # start finished
-                    self.results['starts'][-1]['endtime'] = self.svec.currentstate_start
-                    # calc phase durations
-                    sv = self.results['starts'][-1]
-                    # phases = [x[6:] for x in self.results['starts'][-1]['timing'] if x.startswith('start_')]
-                    phases = list(sv['timing'].keys())
+        if self.svec.currentstate == 'standstill':
+            if self.svec.in_operation == 'on':
+                # start finished
+                self.results['starts'][-1]['endtime'] = self.svec.currentstate_start
+                # calc phase durations
+                sv = self.results['starts'][-1]
+                # phases = [x[6:] for x in self.results['starts'][-1]['timing'] if x.startswith('start_')]
+                phases = list(sv['timing'].keys())
 
-                    # some sense checks, mostly for commissioning or Test cycles 
-                    if 'targetoperation' in phases:
-                        tlr = sv['timing']['targetoperation']
-                        tlr = [{'start':tlr[0]['start'], 'end':tlr[-1]['end']}] # just use the first start and the last end time. (mulitple rampdown cycles)
-                        sv['timing']['targetoperation_org'] = sv['timing']['targetoperation'] # back up original data
-                        sv['timing']['targetoperation'] = tlr # and replace with modified data
+                # some sense checks, mostly for commissioning or Test cycles 
+                if 'targetoperation' in phases:
+                    tlr = sv['timing']['targetoperation']
+                    tlr = [{'start':tlr[0]['start'], 'end':tlr[-1]['end']}] # just use the first start and the last end time. (mulitple rampdown cycles)
+                    sv['timing']['targetoperation_org'] = sv['timing']['targetoperation'] # back up original data
+                    sv['timing']['targetoperation'] = tlr # and replace with modified data
 
 
-                    self._harvest_timings(sv, phases)
-                    # durations = { ph:pd.Timedelta(sv['timing'][ph][-1]['end'] - sv['timing'][ph][-1]['start']).total_seconds() for ph in phases}
-                    # durations['cumstarttime'] = sum([v for k,v in durations.items() if k in ['startpreparation','starter','speedup','idle','synchronize','loadramp']])
-                    # self.results['starts'][-1].update(durations)
- 
-                    if 'targetoperation' in self.results['starts'][-1]:
-                        #successful if the targetoperation run was longer than specified minimal runtime
-                        self.results['starts'][-1]['success'] = (self.results['starts'][-1]['targetoperation'] > self._successtime)
-                    self.results['starts'][-1]['count_alarms'] = len(self.results['starts'][-1]['alarms'])
-                    self.results['starts'][-1]['count_warnings'] = len(self.results['starts'][-1]['warnings'])
- 
-                self.svec.in_operation = 'off'
-                self.results['stops_counter'] += 1 # index for next start
-                self.results['stops'].append({
-                    'run2':False,
-                    'no': self.results['stops_counter'],
-                    'mode': self.svec.service_selector,
-                    'starttime': self.svec.laststate_start,
-                    'endtime': pd.Timestamp(0),
-                    'alarms':[],
-                    'warnings':[]
-                })
+                self._harvest_timings(sv, phases)
+                # durations = { ph:pd.Timedelta(sv['timing'][ph][-1]['end'] - sv['timing'][ph][-1]['start']).total_seconds() for ph in phases}
+                # durations['cumstarttime'] = sum([v for k,v in durations.items() if k in ['startpreparation','starter','speedup','idle','synchronize','loadramp']])
+                # self.results['starts'][-1].update(durations)
 
-            _logline= {
-                'laststate': self.svec.laststate,
-                'laststate_start': self.svec.laststate_start,
-                'msg': self.svec.msg['name'] + ' ' + self.svec.msg['message'],
-                'currenstate': self.svec.currentstate,
-                'currentstate_start': self.svec.currentstate_start,
-                'starts': len(self.results['starts']),
-                'Successful_starts': len([s for s in self.results['starts'] if s['success']]),
-                'operation': self.svec.in_operation,
+                if 'targetoperation' in self.results['starts'][-1]:
+                    #successful if the targetoperation run was longer than specified minimal runtime
+                    self.results['starts'][-1]['success'] = (self.results['starts'][-1]['targetoperation'] > self._successtime)
+                self.results['starts'][-1]['count_alarms'] = len(self.results['starts'][-1]['alarms'])
+                self.results['starts'][-1]['count_warnings'] = len(self.results['starts'][-1]['warnings'])
+
+            self.svec.in_operation = 'off'
+            self.results['stops_counter'] += 1 # index for next start
+            self.results['stops'].append({
+                'run2':False,
+                'no': self.results['stops_counter'],
                 'mode': self.svec.service_selector,
-            }
-            self.results['runlog'].append(_logline)
+                'starttime': self.svec.laststate_start,
+                'endtime': pd.Timestamp(0),
+                'alarms':[],
+                'warnings':[]
+            })
 
+        _logline= {
+            'laststate': self.svec.laststate,
+            'laststate_start': self.svec.laststate_start,
+            'msg': self.svec.msg['name'] + ' ' + self.svec.msg['message'],
+            'currenstate': self.svec.currentstate,
+            'currentstate_start': self.svec.currentstate_start,
+            'starts': len(self.results['starts']),
+            'Successful_starts': len([s for s in self.results['starts'] if s['success']]),
+            'operation': self.svec.in_operation,
+            'mode': self.svec.service_selector,
+        }
+        self.results['runlog'].append(_logline)
+
+### fill & consume cycle for messages
     def fill_message_queue(self, message_queue, messages_iterator, dminutes=30):
         """fills te message queue messages
         until dminutes later. the message_queue enables to inject messages 
@@ -611,9 +615,9 @@ class msgFSM:
             sv = retsv[0] # die Liste ist ein Überbleibsel von Version 1   
             self.svec = sv
             self.results['runlogdetail'].append(copy.deepcopy(sv))
-            self._fsm_Service_selector()
-            self._fsm_collect_alarms()
-            self._fsm_Operating_Cycle()
+            self._do_at_every_message()
+            if self.svec.statechange:
+                self._do_at_every_statechange()
         message_queue = []
         return message_queue
 
