@@ -174,8 +174,30 @@ class FSM: #generic State Machine class
 # devices
 class OilPumpFSM:
     pass
-class ServiceSelectorFSM:
-    pass
+
+class ServiceSelectorFSM(FSM):
+    def __init__(self):
+        self._initial_state = 'undefined'
+        self._states = {
+                'undefined': State('undefined',[
+                    { 'trigger':'1225 Service selector switch Off', 'new-state': 'OFF'},         
+                    { 'trigger':'1226 Service selector switch Manual', 'new-state': 'MAN'},         
+                    { 'trigger':'1227 Service selector switch Automatic', 'new-state': 'AUTO'},         
+                    ]),
+                'OFF': State('OFF',[
+                    { 'trigger':'1226 Service selector switch Manual', 'new-state': 'MAN'},         
+                    { 'trigger':'1227 Service selector switch Automatic', 'new-state': 'AUTO'},         
+                    ]),
+                'MAN': State('MAN',[
+                    { 'trigger':'1225 Service selector switch Off', 'new-state': 'OFF'},         
+                    { 'trigger':'1227 Service selector switch Automatic', 'new-state': 'AUTO'},         
+                    ]),
+                'AUTO': State('AUTO',[
+                    { 'trigger':'1225 Service selector switch Off', 'new-state': 'OFF'},         
+                    { 'trigger':'1226 Service selector switch Manual', 'new-state': 'MAN'},         
+                    ]),
+        }
+
 class onoffFSM:
     pass
 class startstopFSM(FSM):
@@ -257,8 +279,12 @@ class FSMOperator:
         #self._post_period = 0 #sec 'postrun' in data download Start after cycle stop event.
 
         self.statesHandler = startstopFSM(self, self._e)
-        self.statesHandler.dot('FSM.dot')
+        self.statesHandler.dot('startstopFSM.dot')
         self.states = self.statesHandler.states
+
+        self.serviceSelectorHandler = ServiceSelectorFSM()
+        self.serviceSelectorHandler.dot('ServiceSelectorFSM.dot')
+
 
         self.svec = StateVector()
         self.svec.statechange = True
@@ -267,7 +293,7 @@ class FSMOperator:
         self.svec.currentstate = self.statesHandler.initial_state
         self.svec.currentstate_start = self.first_message
         self.svec.in_operation = 'off'
-        self.svec.service_selector = '???'
+        self.svec.service_selector = self.serviceSelectorHandler.initial_state
 
         self.pfn = self._e._fname + '_statemachine.pkl'
         self.hdfn = self._e._fname + '_statemachine.hdf'
@@ -421,9 +447,12 @@ class FSMOperator:
         if self.svec.msg['name'] == '1225 Service selector switch Off'[:4]:
             self.svec.service_selector = 'OFF'
         if self.svec.msg['name'] == '1226 Service selector switch Manual'[:4]:
-            self.svec.service_selector = 'MANUAL'
+            self.svec.service_selector = 'MAN'
         if self.svec.msg['name'] == '1227 Service selector switch Automatic'[:4]:
             self.svec.service_selector = 'AUTO'
+
+        #self.svec.service_selector = self.serviceSelectorHandler.states[self.svec.service_selector].trigger_on_vector(self.svec)
+        #return self.states[self.svec.currentstate].trigger_on_vector(self.svec)
 
         #collect_alarms
         key = 'starts' if self.svec.in_operation == 'on' else 'stops'

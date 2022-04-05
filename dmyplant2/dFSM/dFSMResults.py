@@ -181,12 +181,12 @@ def summary(fsm):
         """))
     nsummary = []
     res = fsm.result
-    for mode in ['???','OFF','MANUAL', 'AUTO']:
+    for mode in ['undefined','OFF','MAN', 'AUTO']:
         lstarts = res[res['mode'] == mode].shape[0]
         successful_starts = res[((res.success) & (res['mode'] == mode))].shape[0]
         nsummary.append([lstarts, successful_starts,(successful_starts / lstarts) * 100.0 if lstarts != 0 else 0.0])
     nsummary.append([res.shape[0],res[res.success].shape[0],(res[res.success].shape[0] / res.shape[0]) * 100.0])
-    display(HTML(pd.DataFrame(nsummary, index=['???','OFF','MANUAL', 'AUTO','ALL'],columns=['Starts','successful','%'], dtype=np.int64).to_html(escape=False)))
+    display(HTML(pd.DataFrame(nsummary, index=['undefined','OFF','MAN', 'AUTO','ALL'],columns=['Starts','successful','%'], dtype=np.int64).to_html(escape=False)))
 
 def summary_out(fsm):
     fsum = f"""
@@ -211,12 +211,12 @@ def summary_out(fsm):
         """
     nsummary = []
     res = fsm.result
-    for mode in ['???','OFF','MANUAL', 'AUTO']:
+    for mode in ['undefined','OFF','MAN', 'AUTO']:
         lstarts = res[res['mode'] == mode].shape[0]
         successful_starts = res[((res.success) & (res['mode'] == mode))].shape[0]
         nsummary.append([lstarts, successful_starts,(successful_starts / lstarts) * 100.0 if lstarts != 0 else 0.0])
     nsummary.append([res.shape[0],res[res.success].shape[0],(res[res.success].shape[0] / res.shape[0]) * 100.0])
-    display(HTML(fsum + pd.DataFrame(nsummary, index=['???','OFF','MANUAL', 'AUTO','ALL'],columns=['Starts','successful','%'], dtype=np.int64).to_html(escape=False)))
+    display(HTML(fsum + pd.DataFrame(nsummary, index=['undefined','OFF','MAN', 'AUTO','ALL'],columns=['Starts','successful','%'], dtype=np.int64).to_html(escape=False)))
 
 
 # alter Code
