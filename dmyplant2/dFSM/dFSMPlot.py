@@ -74,29 +74,29 @@ def FSM_add_Warnings(fig,fsm,startversuch):
     add_dbokeh_vlines(w_lines,fig,line_color='#d5ac13', line_dash='dashed', line_alpha=0.4, line_width=2)
     return fig
 
-def FSMPlot_Start(fsm,startversuch, data, vset, dset, figsize=(16,10)):
-    von_dt=pd.to_datetime(startversuch['starttime']); von=int(von_dt.timestamp())
-    bis_dt=pd.to_datetime(startversuch['endtime']); bis=int(bis_dt.timestamp())
+# def FSMPlot_Start(fsm,startversuch, data, vset, dset, figsize=(16,10)):
+#     von_dt=pd.to_datetime(startversuch['starttime']); von=int(von_dt.timestamp())
+#     bis_dt=pd.to_datetime(startversuch['endtime']); bis=int(bis_dt.timestamp())
 
-    ftitle = f"{fsm._e} ----- Start {startversuch['no']} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
-    print(f"von: {von_dt.strftime('%d.%m.%Y %H:%M:%S')} bis: {bis_dt.strftime('%d.%m.%Y %H:%M:%S')}")
+#     ftitle = f"{fsm._e} ----- Start {startversuch['no']} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
+#     print(f"von: {von_dt.strftime('%d.%m.%Y %H:%M:%S')} bis: {bis_dt.strftime('%d.%m.%Y %H:%M:%S')}")
 
-    al_lines = disp_alarms(startversuch)
-    w_lines = disp_warnings(startversuch)
+#     al_lines = disp_alarms(startversuch)
+#     w_lines = disp_warnings(startversuch)
     
-    fig = dbokeh_chart(data, dset, title=ftitle, grid=False, figsize=figsize, style='line', line_width=0)
+#     fig = dbokeh_chart(data, dset, title=ftitle, grid=False, figsize=figsize, style='line', line_width=0)
 
-    add_dbokeh_vlines(al_lines,fig,line_color='red', line_dash='dashed', line_alpha=0.4, line_width=2)
-    add_dbokeh_vlines(w_lines,fig,line_color='#d5ac13', line_dash='dashed', line_alpha=0.4, line_width=2)
-    add_dbokeh_vlines(states_lines(startversuch),fig,line_color='red', line_dash='solid', line_alpha=0.4)
+#     add_dbokeh_vlines(al_lines,fig,line_color='red', line_dash='dashed', line_alpha=0.4, line_width=2)
+#     add_dbokeh_vlines(w_lines,fig,line_color='#d5ac13', line_dash='dashed', line_alpha=0.4, line_width=2)
+#     add_dbokeh_vlines(states_lines(startversuch),fig,line_color='red', line_dash='solid', line_alpha=0.4)
                             
-    fig.add_layout(Span(location=fsm._e['Power_PowerNominal'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
-    if 'maxload' in startversuch:
-        if startversuch['maxload'] == startversuch['maxload']:
-            fig.add_layout(Span(location=startversuch['maxload'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
-    fig.add_layout(Span(location=fsm._e.Speed_nominal,dimension='width',x_range_name='default', y_range_name='1',line_color='blue', line_dash='solid', line_alpha=0.4)) 
+#     fig.add_layout(Span(location=fsm._e['Power_PowerNominal'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
+#     if 'maxload' in startversuch:
+#         if startversuch['maxload'] == startversuch['maxload']:
+#             fig.add_layout(Span(location=startversuch['maxload'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
+#     fig.add_layout(Span(location=fsm._e.Speed_nominal,dimension='width',x_range_name='default', y_range_name='1',line_color='blue', line_dash='solid', line_alpha=0.4)) 
 
-    return fig
+#     return fig
 
 ## plotting
 def states_lines(startversuch):

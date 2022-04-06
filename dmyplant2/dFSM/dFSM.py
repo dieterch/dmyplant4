@@ -55,6 +55,37 @@ currentstate_start: {self.currentstate_start}
                 f"{self.service_selector:6}| " + \
                 f"{self.msg['severity']} {pd.to_datetime(int(self.msg['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} {self.msg['name']} {self.msg['message']}"
 
+    def __repr__(self):
+        return  f"{'*' if self.statechange else '':2}|"+ \
+                f"{self.startno:04}| " + \
+                f"LST {self.laststate_start.strftime('%d.%m %H:%M:%S')} " + \
+                f"LS  {self.laststate:18}| " + \
+                f"CSS {self.currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
+                f"CS  {self.currentstate:18}| " + \
+                f"{self.in_operation:4}| " + \
+                f"{self.service_selector:6}| " + \
+                f"{self.msg['severity']} {pd.to_datetime(int(self.msg['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} {self.msg['name']} {self.msg['message']}"
+
+
+class nStateVector:
+    statechange = False #*
+    laststate = '' #*
+    laststate_start = None, #*
+    currentstate = '' #*
+    currentstate_start = None #*
+    def __str__(self):
+        return  f"{'*' if self.statechange else '':2}|"+ \
+                f"LST {self.laststate_start.strftime('%d.%m %H:%M:%S')} " + \
+                f"LS  {self.laststate:18}| " + \
+                f"CSS {self.currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
+                f"CS  {self.currentstate:18}| "
+                
+    def __repr__(self):
+        return  f"{'*' if self.statechange else '':2}|"+ \
+                f"LST {self.laststate_start.strftime('%d.%m %H:%M:%S')} " + \
+                f"LS  {self.laststate:18}| " + \
+                f"CSS {self.currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
+                f"CS  {self.currentstate:18}| "
 
 # States und Transferfunktionen, Sammeln von Statebezogenen Daten ... 
 class State:
@@ -67,7 +98,7 @@ class State:
         self._transferfunctions = transferfun_list
         self._trigger = False
     
-    def send(self,msg):
+    def checkmsg(self,msg):
         for transfun in self._transferfunctions: # screen triggers
             self._trigger = msg['name'] == transfun['trigger'][:4]
             if self._trigger:
@@ -76,18 +107,25 @@ class State:
 
     # der Statevector muss an die FSMs angepasst werden, d.h. die varablen müssen in ein dict mit key 'fsmname'...
 
-    def update_vector_on_statechange(self, vector):
-        vector.laststate = self._statename #???
-        vector.laststate_start = vector.currentstate_start #???
-        vector.currentstate_start = pd.to_datetime(vector.msg['timestamp'] * 1e6) #???
-        return vector        
+    # def update_vector_on_statechange(self, vector):
+    #     vector.laststate = self._statename #???
+    #     vector.laststate_start = vector.currentstate_start #???
+    #     vector.currentstate_start = pd.to_datetime(vector.msg['timestamp'] * 1e6) #???
+    #     return vector        
 
-    def trigger_on_vector(self, vector):
-        vector.currentstate = self.send(vector.msg) #??? wie kann ich hier die statevarable hinbringen ?
+    #def trigger_on_vector(self, vector):
+    def trigger_on_vector(self, vector, msg):
+        #vector.currentstate = self.send(vector.msg) 
+        vector.currentstate = self.checkmsg(msg)
         vector.statechange = self._trigger #???
         if self._trigger:
-            vector = self.update_vector_on_statechange(vector)
-        return [vector]
+            #vector = self.update_vector_on_statechange(vector)
+            vector.laststate = self._statename
+            vector.laststate_start = vector.currentstate_start
+            #vector.currentstate_start = pd.to_datetime(vector.msg['timestamp'] * 1e6) #???
+            vector.currentstate_start = pd.to_datetime(msg['timestamp'] * 1e6)
+
+        return vector
 
 class LoadrampStateV2(State):
     """Inherits State and provides a calulated end of the loadramp
@@ -104,24 +142,27 @@ class LoadrampStateV2(State):
         self._default_ramp_duration = 100.0 / self._loadramp
         super().__init__(statename, transferfun_list)
 
-    def trigger_on_vector(self, vector):
-        vectorlist = super().trigger_on_vector(vector)
-        vector = vectorlist[0]        
-
+    #def trigger_on_vector(self, vector):
+    def trigger_on_vector(self, vector, msg):
+        #vector = super().trigger_on_vector(vector)
+        vector = super().trigger_on_vector(vector, msg)
         # calculate the end of ramp time if it isnt defined.
         if self._full_load_timestamp == None:
             self._full_load_timestamp = int((vector.currentstate_start.timestamp() + self._default_ramp_duration) * 1e3)
             self._operator.inject_message({'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600})
 
         # use the message target load reached to make the trigger more accurate. (This message isnt available on all engines.)
-        if vector.msg['name'] == '9047':
-            self._full_load_timestamp = vector.msg['timestamp']
-            self._operator.replace_message(vector.msg)
+        #if vector.msg['name'] == '9047':
+        if msg['name'] == '9047':
+            #self._full_load_timestamp = vector.msg['timestamp']
+            self._full_load_timestamp = msg['timestamp']
+            #self._operator.replace_message(vector.msg)
+            self._operator.replace_message(msg)
 
         if vector.statechange:
             self._full_load_timestamp = None
 
-        return [vector]
+        return vector
 class FSM: #generic State Machine class
     """base class for FSM Definitions
     """
@@ -130,14 +171,15 @@ class FSM: #generic State Machine class
         self._initial_state = None
         self.svec = None
         self._states = None
-        {
-                'state1': State('state1',[
-                    { 'trigger':'1234 text', 'new-state': 'state2'},   # message name + text defines a trigger.          
-                    ]),
-                'state2': State('state2',[
-                    { 'trigger':'1234 text', 'new-state': 'state1'},         
-                    ]),
-        }
+        #z.B:
+        # {
+        #         'state1': State('state1',[
+        #             { 'trigger':'1234 text', 'new-state': 'state2'},   # message name + text defines a trigger.          
+        #             ]),
+        #         'state2': State('state2',[
+        #             { 'trigger':'1234 text', 'new-state': 'state1'},         
+        #             ]),
+        # }
 
     @property
     def initial_state(self):
@@ -148,15 +190,17 @@ class FSM: #generic State Machine class
         return self._states
 
     def initialize_statevector(self, first_message):
-        self.svec = StateVector()
+        self.svec = nStateVector()
         self.svec.statechange = True
         self.svec.laststate = 'init'
         self.svec.laststate_start = first_message
         self.svec.currentstate = self.initial_state
         self.svec.currentstate_start = first_message
-        self.svec.in_operation = 'off'
-        #self.svec.service_selector = self.serviceSelectorHandler.initial_state
         return self.svec        
+
+    def call_trigger_states(self, nsvec):
+        nsvec[self.name] = self.states[nsvec[self.name].currentstate].trigger_on_vector(nsvec[self.name], nsvec['msg'])
+        return nsvec
 
     def dot(self, fn):
         """Create a FSM Diagram of specified states in *.dot Format
@@ -202,6 +246,9 @@ class ServiceSelectorFSM(FSM):
                     { 'trigger':'1226 Service selector switch Manual', 'new-state': 'MAN'},         
                     ]),
         }
+    def collect_data_in_run2(self, nsvec, results):
+        if nsvec[self.name].statechange:
+            nsvec['service_selector'] = nsvec[self.name].currentstate
 
 class onoffFSM:
     pass
@@ -273,44 +320,38 @@ class filterFSM:
 class FSMOperator:
     def __init__(self, e, p_from = None, p_to=None, skip_days=None, frompickle='NOTIMPLEMENTED'):
         self._e = e
-        self._successtime = 0 #success, when targetoperation is longer than xx seconds
         self.load_messages(e, p_from, p_to, skip_days)
-
         self.message_queue = []
         self.extra_messages = []
 
-        self._pre_period = 5*60 #sec 'prerun' in data download Start before cycle start event.
-        self._post_period = 21*60 #sec 'postrun' in data download Start after cycle stop event.
-        #self._pre_period = 0 #sec 'prerun' in data download Start before cycle start event.
-        #self._post_period = 0 #sec 'postrun' in data download Start after cycle stop event.
-
-
-        self.statesHandler = startstopFSM(self, self._e)
-        self.states = self.statesHandler.states
+        #register statehandlers
+        self.startstopHandler = startstopFSM(self, self._e)
         self.serviceSelectorHandler = ServiceSelectorFSM()
 
+        #TODO:
+        #- rewrite the state vector as dict to include the states for all registered 
         self.nsvec = {
-            self.statesHandler.name: self.statesHandler.initialize_statevector(self.first_message),
+            self.startstopHandler.name: self.startstopHandler.initialize_statevector(self.first_message),
             self.serviceSelectorHandler.name: self.serviceSelectorHandler.initialize_statevector(self.first_message),
+            'in_operation': 'off',
+            'service_selector':  self.serviceSelectorHandler.initial_state,
             'msg': 'none',
-            'in_operation': 'off'
+            'startno': 0
         }
 
-        self.statesHandler.dot('startstopFSM.dot')
-        self.serviceSelectorHandler.dot('ServiceSelectorFSM.dot')
-        self.svec = StateVector()        
-        self.svec.statechange = True
-        self.svec.laststate = 'init'
-        self.svec.laststate_start = self.first_message
-        self.svec.currentstate = self.statesHandler.initial_state
-        self.svec.currentstate_start = self.first_message
-        self.svec.in_operation = 'off'
-        self.svec.service_selector = self.serviceSelectorHandler.initial_state
+        # self.svec = StateVector()        
+        # self.svec.statechange = True
+        # self.svec.laststate = 'init'
+        # self.svec.laststate_start = self.first_message
+        # self.svec.currentstate = self.statesHandler.initial_state
+        # self.svec.currentstate_start = self.first_message
+        # self.svec.in_operation = 'off'
+        # self.svec.service_selector = self.serviceSelectorHandler.initial_state
+
+        # self.states = self.statesHandler.states
 
         self.pfn = self._e._fname + '_statemachine.pkl'
         self.hdfn = self._e._fname + '_statemachine.hdf'
-        #self._runlog = []
-        #self._runlogdetail = []
         self.init_results()
 
     def init_results(self):
@@ -321,8 +362,8 @@ class FSMOperator:
             {
                 'run2':False,
                 'no': 0,
-                'mode': self.svec.service_selector,
-                'starttime': self.svec.laststate_start,
+                'mode': self.nsvec['service_selector'],
+                'starttime': self.first_message,
                 'endtime': pd.Timestamp(0),
                 'alarms':[],
                 'warnings':[]                
@@ -330,7 +371,11 @@ class FSMOperator:
             'stops_counter':0,
             'runlog': [],
             'runlogdetail': []
-        }     
+        } 
+
+    def save_docu(self):
+        self.startstopHandler.dot('startstopFSM.dot')
+        self.serviceSelectorHandler.dot('ServiceSelectorFSM.dot')
 
     @property
     def starts(self):
@@ -365,9 +410,9 @@ class FSMOperator:
             os.remove(self.hdfn)
 
     ## message handling
-    def load_messages(self,e, p_from=None, p_to=None, skip_days=None):
-        self._messages = e.get_messages(p_from, p_to) #using stored messages.
-        #self._messages = e.get_messages2(p_from, p_to) #always pull all messages from Myplant
+    def load_messages(self,e, p_from=None, p_to=None, skip_days=None, untilnow=False):
+        #self._messages = e.get_messages(p_from, p_to) #using stored messages.
+        self._messages = e.get_messages2(p_from, p_to, untilnow) 
         pfrom_ts = int(pd.to_datetime(p_from, infer_datetime_format=True).timestamp() * 1000) if p_from else 0
         pto_ts = int(pd.to_datetime(p_to, infer_datetime_format=True).timestamp() * 1000) if p_to else int(pd.Timestamp.now().timestamp() * 1000)
         self._messages = self._messages[(self._messages.timestamp > pfrom_ts) & (self._messages.timestamp < pto_ts)]
@@ -441,13 +486,24 @@ class FSMOperator:
                     f.write(vec.__str__() + '\n')
 
     def runlogdetail(self, startversuch, statechanges_only = False):
+        def makestr(x):
+            return  f"{'*' if x[self.startstopHandler.name].statechange else '':2}|"+ \
+                    f"{x['startno']:04}| " + \
+                    f"LST {x[self.startstopHandler.name].laststate_start.strftime('%d.%m %H:%M:%S')} " + \
+                    f"LS  {x[self.startstopHandler.name].laststate:18}| " + \
+                    f"CSS {x[self.startstopHandler.name].currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
+                    f"CS  {x[self.startstopHandler.name].currentstate:18}| " + \
+                    f"{x['in_operation']:4}| " + \
+                    f"{x['service_selector']:6}| " + \
+                    f"{x['msg']['severity']} {pd.to_datetime(int(x['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} {x['msg']['name']} {x['msg']['message']}"
         ts_start = startversuch['starttime'].timestamp() * 1e3
         ts_end = startversuch['endtime'].timestamp() * 1e3
         if statechanges_only:
-            log = [x for x in self.results['runlogdetail'] if x.statechange]
+            #log = [x for x in self.results['runlogdetail'] if x.statechange]
+            log = [x for x in self.results['runlogdetail'] if x[self.startstopHandler.name].statechange]
         else:
-            log = self.results['runlogdetail']
-        log = [x for x in log if ((x.msg['timestamp'] >= ts_start) and (x.msg['timestamp'] <= ts_end))]
+            log = [x for x in self.results['runlogdetail']]
+        log = [makestr(x) for x in log if ((x['msg']['timestamp'] >= ts_start) and (x['msg']['timestamp'] <= ts_end))]
         return log
 
 #################################################################################################################
@@ -455,30 +511,37 @@ class FSMOperator:
 ###
 ### this code will be executed on every message:
     def _do_at_every_message(self):
+
         #Service_selector
-        if self.svec.msg['name'] == '1225 Service selector switch Off'[:4]:
-            self.svec.service_selector = 'OFF'
-        if self.svec.msg['name'] == '1226 Service selector switch Manual'[:4]:
-            self.svec.service_selector = 'MAN'
-        if self.svec.msg['name'] == '1227 Service selector switch Automatic'[:4]:
-            self.svec.service_selector = 'AUTO'
+        # if self.svec.msg['name'] == '1225 Service selector switch Off'[:4]:
+        #     self.svec.service_selector = 'OFF'
+        # if self.svec.msg['name'] == '1226 Service selector switch Manual'[:4]:
+        #     self.svec.service_selector = 'MAN'
+        # if self.svec.msg['name'] == '1227 Service selector switch Automatic'[:4]:
+        #     self.svec.service_selector = 'AUTO'
 
         #self.svec.service_selector = self.serviceSelectorHandler.states[self.svec.service_selector].trigger_on_vector(self.svec)
         #return self.states[self.svec.currentstate].trigger_on_vector(self.svec)
 
         #collect_alarms
-        key = 'starts' if self.svec.in_operation == 'on' else 'stops'
-        if self.svec.msg['severity'] == 800:
+        #key = 'starts' if self.svec.in_operation == 'on' else 'stops'
+        key = 'starts' if self.nsvec['in_operation'] == 'on' else 'stops'
+        #if self.svec.msg['severity'] == 800:
+        if self.nsvec['msg']['severity'] == 800:
             self.results[key][-1]['alarms'].append({
-                'state':self.svec.currentstate, 
-                'msg': self.svec.msg
+                #'state':self.svec.currentstate, 
+                'state':self.nsvec[self.startstopHandler.name].currentstate, 
+                #'msg': self.svec.msg,
+                'msg': self.nsvec['msg']
                 })
-        if self.svec.msg['severity'] == 700:
+        #if self.svec.msg['severity'] == 700:
+        if self.nsvec['msg']['severity'] == 700:
             self.results[key][-1]['warnings'].append({
-                'state':self.svec.currentstate, 
-                'msg': self.svec.msg
+                #'state':self.svec.currentstate, 
+                'state':self.nsvec[self.startstopHandler.name].currentstate, 
+                #'msg': self.svec.msg,
+                'msg': self.nsvec['msg']
                 })
-
 
     def _harvest_timings(self, sv, phases):
         """calculates state phase durations from state switch Timestamps
@@ -490,13 +553,16 @@ class FSMOperator:
             phases (list): List of state names to collect.
         """
         durations = { ph:pd.Timedelta(sv['timing'][ph][-1]['end'] - sv['timing'][ph][-1]['start']).total_seconds() for ph in phases}
-        durations['cumstarttime'] = sum([v for k,v in durations.items() if k in self.statesHandler.start_timing_states])
+        #durations['cumstarttime'] = sum([v for k,v in durations.items() if k in self.statesHandler.start_timing_states])
+        durations['cumstarttime'] = sum([v for k,v in durations.items() if k in self.startstopHandler.start_timing_states])
         self.results['starts'][sv['no']].update(durations)
 
 ### this code is called at every change of states
     def _do_at_every_statechange(self):
-        if self.svec.currentstate == 'startpreparation':
-            self.results['stops'][-1]['endtime'] = self.svec.currentstate_start
+        #if self.svec.currentstate == 'startpreparation':
+        if self.nsvec[self.startstopHandler.name].currentstate == 'startpreparation':
+            #self.results['stops'][-1]['endtime'] = self.svec.currentstate_start
+            self.results['stops'][-1]['endtime'] = self.nsvec[self.startstopHandler.name].currentstate_start
             self.results['stops'][-1]['count_alarms'] = len(self.results['stops'][-1]['alarms'])
             self.results['stops'][-1]['count_warnings'] = len(self.results['stops'][-1]['warnings'])
             # apends a new record to the Starts list.
@@ -504,8 +570,10 @@ class FSMOperator:
                 'run2':False,
                 'no':self.results['starts_counter'],
                 'success': False,
-                'mode':self.svec.service_selector,
-                'starttime': self.svec.currentstate_start,
+                #'mode':self.svec.service_selector,
+                'mode':self.nsvec['service_selector'],
+                #'starttime': self.svec.currentstate_start,
+                'starttime': self.nsvec[self.startstopHandler.name].currentstate_start,
                 'endtime': pd.Timestamp(0),
                 'cumstarttime': pd.Timedelta(0),
                 'startpreparation':np.nan,
@@ -525,20 +593,32 @@ class FSMOperator:
                 'ramprate': np.nan
             })
             self.results['starts_counter'] += 1 # index for next start
-            self.svec.startno = self.results['starts_counter']
-            self.svec.in_operation = 'on'
-        elif self.svec.in_operation == 'on': # and actstate != FSM.initial_state:
-            self.results['starts'][-1]['mode'] = self.svec.service_selector
-            rec = {'start':self.svec.laststate_start, 'end':self.svec.currentstate_start}
-            if not self.svec.laststate in self.results['starts'][-1]['timing']:
-                self.results['starts'][-1]['timing'][self.svec.laststate]=[rec]
+            #self.svec.startno = self.results['starts_counter']
+            self.nsvec['startno'] = self.results['starts_counter']
+            ##############
+            #self.svec.in_operation = 'on'
+            self.nsvec['in_operation'] = 'on'
+        #elif self.svec.in_operation == 'on': # and actstate != FSM.initial_state:
+        elif self.nsvec['in_operation'] == 'on': # and actstate != FSM.initial_state:
+            #self.results['starts'][-1]['mode'] = self.svec.service_selector
+            self.results['starts'][-1]['mode'] = self.nsvec['service_selector']
+            #rec = {'start':self.svec.laststate_start, 'end':self.svec.currentstate_start}
+            rec = {'start':self.nsvec[self.startstopHandler.name].laststate_start, 'end':self.nsvec[self.startstopHandler.name].currentstate_start}
+            #if not self.svec.laststate in self.results['starts'][-1]['timing']:
+            if not self.nsvec[self.startstopHandler.name].laststate in self.results['starts'][-1]['timing']:
+                #self.results['starts'][-1]['timing'][self.svec.laststate]=[rec]
+                self.results['starts'][-1]['timing'][self.nsvec[self.startstopHandler.name].laststate]=[rec]
             else:
-                self.results['starts'][-1]['timing'][self.svec.laststate].append(rec)
+                #self.results['starts'][-1]['timing'][self.svec.laststate].append(rec)
+                self.results['starts'][-1]['timing'][self.nsvec[self.startstopHandler.name].laststate].append(rec)
 
-        if self.svec.currentstate == 'standstill':
-            if self.svec.in_operation == 'on':
+        #if self.svec.currentstate == 'standstill':
+        if self.nsvec[self.startstopHandler.name].currentstate == 'standstill':
+            #if self.svec.in_operation == 'on':
+            if self.nsvec['in_operation'] == 'on':
                 # start finished
-                self.results['starts'][-1]['endtime'] = self.svec.currentstate_start
+                #self.results['starts'][-1]['endtime'] = self.svec.currentstate_start
+                self.results['starts'][-1]['endtime'] = self.nsvec[self.startstopHandler.name].currentstate_start
                 # calc phase durations
                 sv = self.results['starts'][-1]
                 # phases = [x[6:] for x in self.results['starts'][-1]['timing'] if x.startswith('start_')]
@@ -551,7 +631,6 @@ class FSMOperator:
                     sv['timing']['targetoperation_org'] = sv['timing']['targetoperation'] # back up original data
                     sv['timing']['targetoperation'] = tlr # and replace with modified data
 
-
                 self._harvest_timings(sv, phases)
                 # durations = { ph:pd.Timedelta(sv['timing'][ph][-1]['end'] - sv['timing'][ph][-1]['start']).total_seconds() for ph in phases}
                 # durations['cumstarttime'] = sum([v for k,v in durations.items() if k in ['startpreparation','starter','speedup','idle','synchronize','loadramp']])
@@ -563,28 +642,38 @@ class FSMOperator:
                 self.results['starts'][-1]['count_alarms'] = len(self.results['starts'][-1]['alarms'])
                 self.results['starts'][-1]['count_warnings'] = len(self.results['starts'][-1]['warnings'])
 
-            self.svec.in_operation = 'off'
+            #self.svec.in_operation = 'off'
+            self.nsvec[self.startstopHandler.name].in_operation = 'off'
             self.results['stops_counter'] += 1 # index for next start
             self.results['stops'].append({
                 'run2':False,
                 'no': self.results['stops_counter'],
-                'mode': self.svec.service_selector,
-                'starttime': self.svec.laststate_start,
+                #'mode': self.svec.service_selector,
+                'mode': self.nsvec['service_selector'],
+                #'starttime': self.svec.laststate_start,
+                'starttime': self.nsvec[self.startstopHandler.name].laststate_start,
                 'endtime': pd.Timestamp(0),
                 'alarms':[],
                 'warnings':[]
             })
 
         _logline= {
-            'laststate': self.svec.laststate,
-            'laststate_start': self.svec.laststate_start,
-            'msg': self.svec.msg['name'] + ' ' + self.svec.msg['message'],
-            'currenstate': self.svec.currentstate,
-            'currentstate_start': self.svec.currentstate_start,
+            #'laststate': self.svec.laststate,
+            'laststate': self.nsvec[self.startstopHandler.name].laststate,
+            #'laststate_start': self.svec.laststate_start,
+            'laststate_start': self.nsvec[self.startstopHandler.name].laststate_start,
+            #'msg': self.svec.msg['name'] + ' ' + self.svec.msg['message'],
+            'msg': self.nsvec['msg']['name'] + ' ' + self.nsvec['msg']['message'],
+            #'currenstate': self.svec.currentstate,
+            'currenstate': self.nsvec[self.startstopHandler.name].currentstate,
+            #'currentstate_start': self.svec.currentstate_start,
+            'currentstate_start': self.nsvec[self.startstopHandler.name].currentstate_start,
             'starts': len(self.results['starts']),
             'Successful_starts': len([s for s in self.results['starts'] if s['success']]),
-            'operation': self.svec.in_operation,
-            'mode': self.svec.service_selector,
+            #'operation': self.svec.in_operation,
+            'operation': self.nsvec['in_operation'],
+            #'mode': self.svec.service_selector,
+            'mode': self.nsvec['service_selector'],
         }
         self.results['runlog'].append(_logline)
 
@@ -629,23 +718,26 @@ class FSMOperator:
         if len(self.results['starts']) == 0 or enforce:
             self.init_results()            
         self.message_queue = [m for i,m in self._messages.iterrows()]
-        vecstore = copy.deepcopy(self.svec) # store statevector
+        #vecstore = copy.deepcopy(self.svec) # store statevector
+        vecstore = copy.deepcopy(self.nsvec) # store statevector
         if not silent:
             pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM")
         for msg in self.message_queue:
-            self.svec.msg = msg
-            retsv = self.call_trigger_states()
-            #self.svec.service_selector = self.serviceSelectorHandler.states[self.svec.service_selector].trigger_on_vector(self.svec)
-            sv = retsv[0] # die Liste ist ein Überbleibsel von Version 1   
-            #print(sv)
-            self.svec = sv
+            #self.svec.msg = msg
+            self.nsvec['msg'] = msg
+            #sv = self.call_trigger_states()
+            #self.svec = sv
+            self.nsvec = self.startstopHandler.call_trigger_states(self.nsvec)
+            self.nsvec = self.serviceSelectorHandler.call_trigger_states(self.nsvec)
             if not silent:
                 pbar.update()
-        self.svec = vecstore # restore statevector
+        #self.svec = vecstore # restore statevector
+        self.nsvec = vecstore # restore statevector
         self.debug_msg('extra messages before merge:',self.extra_messages, debug=debug)
         self.message_queue, self.extra_messages = self.merge_extra_messages(self.message_queue, self.extra_messages)
         self.debug_msg('extra messages after merge:',self.extra_messages, debug=debug)
-        pbar.close()        
+        if not silent:
+            pbar.close()        
 
     def run1(self, silent=False ,debug= False, successtime=300):
         """Statemachine Operator Run 1 - using extra messages injected in run0 
@@ -660,14 +752,24 @@ class FSMOperator:
             pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM")
 
         for msg in self.message_queue:
-            self.svec.msg = msg
-            retsv = self.call_trigger_states()
-            sv = retsv[0] # die Liste ist ein Überbleibsel von Version 1   
-            self.svec = sv
-            self.results['runlogdetail'].append(copy.deepcopy(sv))
+            #self.svec.msg = msg
+            self.nsvec['msg'] = msg
+            #sv = self.call_trigger_states()
+            #self.svec = sv
+            self.nsvec = self.startstopHandler.call_trigger_states(self.nsvec)
+            self.nsvec = self.serviceSelectorHandler.call_trigger_states(self.nsvec)
+            self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
+
+            # Daten Auswerten:
             self._do_at_every_message()
-            if self.svec.statechange:
+            # if self.svec.statechange:
+            #     self._do_at_every_statechange()
+            if self.nsvec[self.startstopHandler.name].statechange:
                 self._do_at_every_statechange()
+            #if self.nsvec[self.serviceSelectorHandler.name].statechange:
+            #    self._do_at_every_statechange()
+            self.serviceSelectorHandler.collect_data_in_run2(self.nsvec, self.results)
+
             if not silent:
                 pbar.update()
         if not silent:

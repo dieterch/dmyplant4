@@ -5,8 +5,8 @@ from .dFSMData import (
     get_period_data,
 )
 from .dFSMResults import (
-    detect_edge_right, 
-    detect_edge_left,
+    #detect_edge_right, 
+    #detect_edge_left,
     loadramp_edge_detect,
     disp_result ,
     disp_alarms, 
@@ -19,7 +19,7 @@ from .dFSMPlot import (
     FSM_add_Notations,
     FSM_add_Alarms,
     FSM_add_Warnings,
-    FSMPlot_Start,
+    #FSMPlot_Start,
     states_lines
 )
 from .dFSM import (

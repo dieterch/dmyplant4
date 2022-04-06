@@ -29,7 +29,7 @@ from dmyplant2.dFSM import (
     FSM_add_Notations,
     FSM_add_Alarms,
     FSM_add_Warnings,
-    FSMPlot_Start,
+    #FSMPlot_Start,
     load_data,
     get_cycle_data, 
     get_cycle_data2, 
@@ -40,6 +40,6 @@ from dmyplant2.dFSM import (
     warnings_pareto,
     states_lines,
     loadramp_edge_detect,
-    detect_edge_right, 
-    detect_edge_left,
+    #detect_edge_right, 
+    #detect_edge_left,
     figures)

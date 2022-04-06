@@ -5,9 +5,9 @@ from IPython.display import HTML, display
 from .dFSM import filterFSM
 from .dFSMData import load_data
 
-def loadramp_edge_detect(fsm, startversuch, periodfactor=1.5, helplinefactor=0.8):
+def loadramp_edge_detect(fsm, startversuch, periodfactor=3, helplinefactor=0.8):
     # 1.4.2022 Aufgrund von Bautzen, der sehr langsam startet
-    # periodfactor = 3, helplinefactor = 0.0
+    # periodfactor = 3, helplinefactor = 0.8
     # der Start
     # Start: 201 xmax: 2021-07-19 09:20:31, ymax:   3387, duration: 528.7, ramprate: 0.19 %/s
     # von: 19.07.2021 09:07:44 bis: 19.07.2021 09:34:47
@@ -44,55 +44,55 @@ def loadramp_edge_detect(fsm, startversuch, periodfactor=1.5, helplinefactor=0.8
         return pd.DataFrame([]), startversuch['endtime'], 0.0, 0.0, 0.0
     return data, xmax, ymax, duration, ramprate 
 
-# RUN2 Results
-def detect_edge_right(data, name, startversuch=pd.DataFrame([]), right=None):
-    right = startversuch['endtime'] if not startversuch.empty else right
-    ndata = data[data['datetime'] < right].copy() if right != None else data.copy()
-    fac = {'left': -1.0, 'right': 1.0}
-    ldata = ndata[['datetime',name]]
-    x0 = ldata.iloc[0]['datetime'];
-    x1 = ldata.iloc[-1]['datetime'];
-    edge0 = ndata.loc[ndata[name].idxmax()]
-    try:
-        xfac = (x1 - x0) / (x1 - edge0.datetime)
-    except ZeroDivisionError:
-        xfac = 0.0
-    xfac = min(xfac, 150.0)
-    #print(f"###### | xfac: {xfac:5.2f} | kind: {kind:>5} | name: {name}")
-    lmax = ldata.loc[:,name].max() * xfac * 0.90
-    ndata['helpline_right'] = (ndata['datetime'] - x0)*lmax/(x1-x0)
-    ndata[name+'_right'] = ndata[name]+(ndata['datetime'] - x0)*lmax/(x1-x0)
-    Point = namedtuple('edge',["loc", "val"])
-    try:
-        edge = ndata.loc[ndata[name+'_right'].idxmax()]
-    except Exception as err:
-        #logging.error(str(err))
-        edge = ndata.iloc[-1]
-    return  Point(edge.datetime, ldata.at[edge.name,name]), ndata
+# # RUN2 Results
+# def detect_edge_right(data, name, startversuch=pd.DataFrame([]), right=None):
+#     right = startversuch['endtime'] if not startversuch.empty else right
+#     ndata = data[data['datetime'] < right].copy() if right != None else data.copy()
+#     fac = {'left': -1.0, 'right': 1.0}
+#     ldata = ndata[['datetime',name]]
+#     x0 = ldata.iloc[0]['datetime'];
+#     x1 = ldata.iloc[-1]['datetime'];
+#     edge0 = ndata.loc[ndata[name].idxmax()]
+#     try:
+#         xfac = (x1 - x0) / (x1 - edge0.datetime)
+#     except ZeroDivisionError:
+#         xfac = 0.0
+#     xfac = min(xfac, 150.0)
+#     #print(f"###### | xfac: {xfac:5.2f} | kind: {kind:>5} | name: {name}")
+#     lmax = ldata.loc[:,name].max() * xfac * 0.90
+#     ndata['helpline_right'] = (ndata['datetime'] - x0)*lmax/(x1-x0)
+#     ndata[name+'_right'] = ndata[name]+(ndata['datetime'] - x0)*lmax/(x1-x0)
+#     Point = namedtuple('edge',["loc", "val"])
+#     try:
+#         edge = ndata.loc[ndata[name+'_right'].idxmax()]
+#     except Exception as err:
+#         #logging.error(str(err))
+#         edge = ndata.iloc[-1]
+#     return  Point(edge.datetime, ldata.at[edge.name,name]), ndata
 
-def detect_edge_left(data, name, startversuch=pd.DataFrame([]), left=None):
-    left = startversuch['starttime'] if not startversuch.empty else left
-    ndata = data[data['datetime'] > left].copy() if left != None else data.copy()
-    ldata = ndata[['datetime',name]]
-    x0 = ldata.iloc[0]['datetime'];
-    x1 = ldata.iloc[-1]['datetime'];
-    edge0 = ndata.loc[ndata[name].idxmax()]
-    try:
-        xfac = (x1 - x0) / (edge0.datetime - x0)
-    except ZeroDivisionError:
-        xfac = 0.0
-    xfac = min(xfac, 20.0)
-    #print(f"###### | xfac: {xfac:5.2f} | left | name: {name}")
-    lmax = ldata.loc[:,name].max() * xfac * 0.90
-    ndata['helpline_left'] = (x0 - ndata['datetime'])*lmax/(x1-x0) + lmax
-    ndata[name+'_left'] = ndata[name]+(x0 - ndata['datetime'])*lmax/(x1-x0) + lmax
-    Point = namedtuple('edge',["loc", "val"])
-    try:
-        edge = ndata.loc[ndata[name+'_left'].idxmax()]
-    except Exception as err:
-        #logging.error(str(err))
-        edge = ndata.iloc[-1]
-    return  Point(edge.datetime, ldata.at[edge.name,name]), ndata
+# def detect_edge_left(data, name, startversuch=pd.DataFrame([]), left=None):
+#     left = startversuch['starttime'] if not startversuch.empty else left
+#     ndata = data[data['datetime'] > left].copy() if left != None else data.copy()
+#     ldata = ndata[['datetime',name]]
+#     x0 = ldata.iloc[0]['datetime'];
+#     x1 = ldata.iloc[-1]['datetime'];
+#     edge0 = ndata.loc[ndata[name].idxmax()]
+#     try:
+#         xfac = (x1 - x0) / (edge0.datetime - x0)
+#     except ZeroDivisionError:
+#         xfac = 0.0
+#     xfac = min(xfac, 20.0)
+#     #print(f"###### | xfac: {xfac:5.2f} | left | name: {name}")
+#     lmax = ldata.loc[:,name].max() * xfac * 0.90
+#     ndata['helpline_left'] = (x0 - ndata['datetime'])*lmax/(x1-x0) + lmax
+#     ndata[name+'_left'] = ndata[name]+(x0 - ndata['datetime'])*lmax/(x1-x0) + lmax
+#     Point = namedtuple('edge',["loc", "val"])
+#     try:
+#         edge = ndata.loc[ndata[name+'_left'].idxmax()]
+#     except Exception as err:
+#         #logging.error(str(err))
+#         edge = ndata.iloc[-1]
+#     return  Point(edge.datetime, ldata.at[edge.name,name]), ndata
 
 ## Resultate aus einem FSM Lauf ermitteln.
 def disp_result(startversuch):

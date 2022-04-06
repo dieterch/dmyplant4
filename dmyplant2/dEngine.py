@@ -1234,7 +1234,7 @@ class Engine:
             raise Exception("Failed to fetch Oil sample Data")
         return rec
 
-    def get_messages2(self, p_from=None, p_to=None):
+    def get_messages2(self, p_from=None, p_to=None, untilnow=False):
         """load messages ready for the Finite State Mchine Analysis
 
         Args:
@@ -1252,8 +1252,44 @@ class Engine:
         sev = [600,650,700,800]
         p_from_ts = int(arrow.get(p_from).timestamp() * 1e3)
         p_to_ts = int(arrow.get(p_to).timestamp() * 1e3)
-        messages = self.batch_hist_alarms(p_severities=sev, p_from = p_from_ts, p_to = p_to_ts)
-        messages = messages.iloc[::-1]
+
+        # if untilnow == False and p_to points to today ...
+        # change p_to_ts to the day before 23:59.59 ...
+        # so contacts to myplant are avoided unless explicitely requested.
+        if not untilnow:
+            _p_to_s = int(pd.to_datetime(datetime.now()).replace(day=(datetime.today()-timedelta(hours=24)).day, hour=23, minute = 59, second=59, microsecond=0).timestamp() * 1000)
+            if p_to_ts > _p_to_s:
+                p_to_ts = _p_to_s
+
+        pfn = self._fname +"_messages.pkl"
+        if os.path.exists(pfn):
+            messages = pd.read_pickle(pfn)    
+            if messages.empty:      # avoid errors with an empty messages dataframe ---
+                os.remove(pfn)
+
+        if not os.path.exists(pfn):
+            messages = self.batch_hist_alarms(p_severities=sev, p_from = p_from_ts, p_to = p_to_ts)
+            messages = messages.iloc[::-1]
+
+        # 10 Minuten Toleranz
+        tol = 61*60*1000
+
+        if p_from_ts + tol < int(messages.iloc[0].timestamp):
+            from_messages = self.batch_hist_alarms(p_severities=sev, p_from = p_from_ts, p_to = int(messages.iloc[0].timestamp))
+            from_messages = from_messages[::-1]
+            messages = pd.concat([from_messages[:-1],messages])
+
+        if p_to_ts - tol > int(messages.iloc[-1].timestamp):
+            to_messages = self.batch_hist_alarms(p_severities=sev, p_from = int(messages.iloc[-1].timestamp), p_to = p_to_ts)
+            to_messages = to_messages[::-1]
+            messages = pd.concat([messages,to_messages[1:]])
+
+        messages = messages[((messages['timestamp'] >= p_from_ts) & (messages['timestamp'] <= p_to_ts))]
+
+        if os.path.exists(pfn):
+            os.remove(pfn)
+
+        messages.to_pickle(pfn)
         return messages.reset_index()
 
 
