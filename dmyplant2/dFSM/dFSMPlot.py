@@ -29,11 +29,11 @@ def FSM_add_Notations(fig,fsm,startversuch):
     #sv_lines = [v for v in startversuch[filterFSM.vertical_lines_times] if v==v]
     lines = {
         k:{
-            'time':startversuch['timing'][k][-1]['start'],
+            'time':startversuch['startstoptiming'][k][-1]['start'],
             'duration':startversuch[k]
         } 
         for k in filterFSM.vertical_lines_times 
-        if k in startversuch['timing'] and (startversuch['timing'][k][-1]['start'] == startversuch['timing'][k][-1]['start'])}
+        if k in startversuch['startstoptiming'] and (startversuch['startstoptiming'][k][-1]['start'] == startversuch['startstoptiming'][k][-1]['start'])}
     lines['End'] = {
         'time':startversuch['endtime'],
         'duration': 0.0
@@ -56,8 +56,8 @@ def FSM_add_Notations(fig,fsm,startversuch):
     fig.add_layout(Span(location=fsm._e.Speed_nominal,dimension='width',x_range_name='default', y_range_name='1',line_color='blue', line_dash='solid', line_alpha=0.4)) 
 
     # visualize calcualted loadramp
-    if 'loadramp' in startversuch['timing']:
-        x0 = startversuch['timing']['loadramp'][-1]['start']; y0 = 0.0
+    if 'loadramp' in startversuch['startstoptiming']:
+        x0 = startversuch['startstoptiming']['loadramp'][-1]['start']; y0 = 0.0
         default_ramp_rate = fsm._e['rP_Ramp_Set'] if fsm._e['rP_Ramp_Set'] != None else 0.625
         default_ramp_duration = 100.0 / default_ramp_rate
         x1 = x0 + pd.Timedelta(default_ramp_duration, unit='sec'); y1 = fsm._e['Power_PowerNominal']

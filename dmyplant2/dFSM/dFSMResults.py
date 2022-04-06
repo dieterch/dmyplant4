@@ -12,9 +12,9 @@ def loadramp_edge_detect(fsm, startversuch, periodfactor=3, helplinefactor=0.8):
     # Start: 201 xmax: 2021-07-19 09:20:31, ymax:   3387, duration: 528.7, ramprate: 0.19 %/s
     # von: 19.07.2021 09:07:44 bis: 19.07.2021 09:34:47
     # ist zu kurz, => Änderung des Algorithmus auf Last max statt Last letzter Punkt
-    if 'loadramp' in startversuch['timing']:
-        s = startversuch['timing']['loadramp'][-1]['start'].timestamp()
-        e = startversuch['timing']['loadramp'][-1]['end'].timestamp()
+    if 'loadramp' in startversuch['startstoptiming']:
+        s = startversuch['startstoptiming']['loadramp'][-1]['start'].timestamp()
+        e = startversuch['startstoptiming']['loadramp'][-1]['end'].timestamp()
         e2 = s + periodfactor * (e-s)
         data = load_data(fsm, cycletime=1, tts_from=s, tts_to=e2, silent=True, p_data=['Power_PowerAct'], p_forceReload=False, p_suffix='loadramp')
         if not data.empty:
