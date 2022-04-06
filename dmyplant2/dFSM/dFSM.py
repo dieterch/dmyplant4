@@ -16,24 +16,13 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 #Various_Bits_CollAlarm
 class StateVector:
-    """Statevector Class holds the actual states of all statemachines
-    it kind of iterates through the FSM. Is a core data Structure for 
-    the FSMOperator and State Class.
 
-    a state shall be added for every stateinformation that is added to the
-    State Machine classes. FSMOperator fills the vector in its
-    functions 
-    FSMOperator._do_at_every_message and 
-    FSMOperator._do_at_every_statechange
-
-    pp() prettyprint state vector
-    """
-    statechange = False
+    statechange = False #*
     startno = 0
-    laststate = ''
-    laststate_start = None,
-    currentstate = ''
-    currentstate_start = None
+    laststate = '' #*
+    laststate_start = None, #*
+    currentstate = '' #*
+    currentstate_start = None #*
     in_operation = ''
     service_selector = ''
     msg = None
@@ -85,15 +74,17 @@ class State:
                 return transfun['new-state']
         return self._statename
 
+    # der Statevector muss an die FSMs angepasst werden, d.h. die varablen müssen in ein dict mit key 'fsmname'...
+
     def update_vector_on_statechange(self, vector):
-        vector.laststate = self._statename
-        vector.laststate_start = vector.currentstate_start
-        vector.currentstate_start = pd.to_datetime(vector.msg['timestamp'] * 1e6)
+        vector.laststate = self._statename #???
+        vector.laststate_start = vector.currentstate_start #???
+        vector.currentstate_start = pd.to_datetime(vector.msg['timestamp'] * 1e6) #???
         return vector        
 
     def trigger_on_vector(self, vector):
-        vector.currentstate = self.send(vector.msg)
-        vector.statechange = self._trigger
+        vector.currentstate = self.send(vector.msg) #??? wie kann ich hier die statevarable hinbringen ?
+        vector.statechange = self._trigger #???
         if self._trigger:
             vector = self.update_vector_on_statechange(vector)
         return [vector]
@@ -135,14 +126,16 @@ class FSM: #generic State Machine class
     """base class for FSM Definitions
     """
     def __init__(self):
+        self.name = 'generic'
         self._initial_state = None
+        self.svec = None
         self._states = None
         {
                 'state1': State('state1',[
                     { 'trigger':'1234 text', 'new-state': 'state2'},   # message name + text defines a trigger.          
                     ]),
                 'state2': State('state2',[
-                    { 'trigger':'1234 text', 'new-state': 'state1'},   # message name + text defines a trigger.          
+                    { 'trigger':'1234 text', 'new-state': 'state1'},         
                     ]),
         }
 
@@ -153,6 +146,17 @@ class FSM: #generic State Machine class
     @property
     def states(self):
         return self._states
+
+    def initialize_statevector(self, first_message):
+        self.svec = StateVector()
+        self.svec.statechange = True
+        self.svec.laststate = 'init'
+        self.svec.laststate_start = first_message
+        self.svec.currentstate = self.initial_state
+        self.svec.currentstate_start = first_message
+        self.svec.in_operation = 'off'
+        #self.svec.service_selector = self.serviceSelectorHandler.initial_state
+        return self.svec        
 
     def dot(self, fn):
         """Create a FSM Diagram of specified states in *.dot Format
@@ -177,6 +181,7 @@ class OilPumpFSM:
 
 class ServiceSelectorFSM(FSM):
     def __init__(self):
+        self.name = 'serviceselector'
         self._initial_state = 'undefined'
         self._states = {
                 'undefined': State('undefined',[
@@ -202,6 +207,7 @@ class onoffFSM:
     pass
 class startstopFSM(FSM):
     def __init__(self, operator, e):
+        self.name = 'startstop'
         self._operator = operator
         self._e = e
         self._initial_state = 'standstill'
@@ -278,15 +284,21 @@ class FSMOperator:
         #self._pre_period = 0 #sec 'prerun' in data download Start before cycle start event.
         #self._post_period = 0 #sec 'postrun' in data download Start after cycle stop event.
 
+
         self.statesHandler = startstopFSM(self, self._e)
-        self.statesHandler.dot('startstopFSM.dot')
         self.states = self.statesHandler.states
-
         self.serviceSelectorHandler = ServiceSelectorFSM()
+
+        self.nsvec = {
+            self.statesHandler.name: self.statesHandler.initialize_statevector(self.first_message),
+            self.serviceSelectorHandler.name: self.serviceSelectorHandler.initialize_statevector(self.first_message),
+            'msg': 'none',
+            'in_operation': 'off'
+        }
+
+        self.statesHandler.dot('startstopFSM.dot')
         self.serviceSelectorHandler.dot('ServiceSelectorFSM.dot')
-
-
-        self.svec = StateVector()
+        self.svec = StateVector()        
         self.svec.statechange = True
         self.svec.laststate = 'init'
         self.svec.laststate_start = self.first_message
@@ -576,36 +588,6 @@ class FSMOperator:
         }
         self.results['runlog'].append(_logline)
 
-### fill & consume cycle for messages
-    def fill_message_queue(self, message_queue, messages_iterator, dminutes=30):
-        """fills te message queue messages
-        until dminutes later. the message_queue enables to inject messages 
-        at a later time or to investigate the timing of e.g.trips.
-
-        Args:
-            message_queue (list): message queue
-            messages_iterator (iterator): messages generator
-            dt (int): delta t in min
-
-        Returns:
-            message_queue : message que
-        """
-        i, m = next(messages_iterator)
-        t0 = m['timestamp'] 
-        #print('von: ',t0, pd.to_datetime(t0 * 1000000))
-        dminutes_ns = dminutes*60*1000
-        #print('bis: ',t0 + dtns, pd.to_datetime((t0 + dtns) * 1000000))
-        mit = m
-        while mit['timestamp'] < t0 + dminutes_ns:
-            message_queue.append(mit)
-            try:
-                i, mit = next(messages_iterator)
-            except StopIteration:
-                message_queue.pop()
-                break
-        message_queue.append(mit)
-        return message_queue
-
     def merge_extra_messages(self, messages_queue, extra_messages):
         """extra messages are generated by special state trigger functions,
         which e.g. estimate missing messages like '9047 target load reached'
@@ -629,16 +611,55 @@ class FSMOperator:
         messages_queue.sort(key=lambda x: x['timestamp'], reverse=False)
         return messages_queue, extra_messages
 
-    def consume_message_queue(self, message_queue):
-        """runs the statemchine with messages from the message_que.
+    def debug_msg(self, titel, msgque, max=100000, debug=False):
+        if debug:
+            print(titel, len(msgque), ' items')
+            for msg in msgque[:max]:
+                print(f"{msg['timestamp']} {pd.to_datetime(msg['timestamp'] * 1000000)} {msg['name']} {msg['severity']} {msg['message']}")
+            print()
+
+
+    def run0(self, enforce=False, silent=False ,debug=False):
+        """Statemachine Operator Run0 - collect e.g. calculated future events in self.extra_messages 
+        Args:
+            enforce (bool, optional): if True runs statemachine even if results are already available. Defaults to False.
+            silent (bool, optional): do not show progress bar if True. Defaults to False.
+        """        
+
+        if len(self.results['starts']) == 0 or enforce:
+            self.init_results()            
+        self.message_queue = [m for i,m in self._messages.iterrows()]
+        vecstore = copy.deepcopy(self.svec) # store statevector
+        if not silent:
+            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM")
+        for msg in self.message_queue:
+            self.svec.msg = msg
+            retsv = self.call_trigger_states()
+            #self.svec.service_selector = self.serviceSelectorHandler.states[self.svec.service_selector].trigger_on_vector(self.svec)
+            sv = retsv[0] # die Liste ist ein Überbleibsel von Version 1   
+            #print(sv)
+            self.svec = sv
+            if not silent:
+                pbar.update()
+        self.svec = vecstore # restore statevector
+        self.debug_msg('extra messages before merge:',self.extra_messages, debug=debug)
+        self.message_queue, self.extra_messages = self.merge_extra_messages(self.message_queue, self.extra_messages)
+        self.debug_msg('extra messages after merge:',self.extra_messages, debug=debug)
+        pbar.close()        
+
+    def run1(self, silent=False ,debug= False, successtime=300):
+        """Statemachine Operator Run 1 - using extra messages injected in run0 
 
         Args:
-            message_queue (list): the messages to consume by the state machine
+            silent (bool, optional): do not show progress bar if True. Defaults to False.
+            successtime (int, optional): How long an operation cycle needs to stay in state targetoperation to be assessed successful. Defaults to 300.
+        """        
+        self._successtime = successtime
 
-        Returns:
-            list: empty message_queue, cause all messages are consumed.
-        """
-        for msg in message_queue:
+        if not silent:
+            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM")
+
+        for msg in self.message_queue:
             self.svec.msg = msg
             retsv = self.call_trigger_states()
             sv = retsv[0] # die Liste ist ein Überbleibsel von Version 1   
@@ -647,62 +668,8 @@ class FSMOperator:
             self._do_at_every_message()
             if self.svec.statechange:
                 self._do_at_every_statechange()
-        message_queue = []
-        return message_queue
-
-    def debug_msg(self, titel, msgque, max=100000, debug=False):
-        if debug:
-            print(titel, len(msgque), ' items')
-            for msg in msgque[:max]:
-                print(f"{msg['timestamp']} {pd.to_datetime(msg['timestamp'] * 1000000)} {msg['name']} {msg['severity']} {msg['message']}")
-            print()
-
-    def run1_V2(self, enforce=False, silent=False ,debug= False, successtime=300):
-        """Statemachine Operator Entry functions Version2 - using messages queues 
-
-        Args:
-            enforce (bool, optional): if True runs statemachine even if results are already available. Defaults to False.
-            silent (bool, optional): do not show progress bar if True. Defaults to False.
-            successtime (int, optional): How long an operation cycle needs to stay in state targetoperation to be assessed successful. Defaults to 300.
-        """        
-        self._successtime = successtime
-        if len(self.results['starts']) == 0 or enforce:
-            self.init_results()
-
-        it = self._messages.iterrows()
-        self.message_queue = []
-        if not silent:
-            pbar = tqdm(total=len(self._messages), ncols=80, mininterval=1, unit=' messages', desc="FSM")
-        while True:
-            try:
-                self.message_queue = self.fill_message_queue(self.message_queue, it, dminutes=10)
-                self.debug_msg('message queue after fill:',self.message_queue, debug=debug)
-                self.debug_msg('extra messages after fill:',self.extra_messages, debug=debug)
-
-                # dry run
-                vecstore = copy.deepcopy(self.svec) # store statevector
-                for msg in self.message_queue:
-                    self.svec.msg = msg
-                    retsv = self.call_trigger_states()
-                    sv = retsv[0] # die Liste ist ein Überbleibsel von Version 1   
-                    self.svec = sv
-                self.svec = vecstore # restore statevector
-
-                self.debug_msg('message queue after fill & FSM zero run:',self.message_queue, debug=debug)
-                self.debug_msg('extra messages after fill & FSM zero run:',self.extra_messages, debug=debug)
-                if not silent:
-                    pbar.update(len(self.message_queue))
-
-                self.message_queue, self.extra_messages = self.merge_extra_messages(self.message_queue, self.extra_messages)
-                self.debug_msg('message queue after merge:',self.message_queue, debug=debug)
-                self.debug_msg('extra messages after merge:',self.extra_messages, debug=debug)
-
-                self.message_queue = self.consume_message_queue(self.message_queue)
-                self.debug_msg('message queue after consume:',self.message_queue, debug=debug)
-            except StopIteration:
-                if debug:
-                    print(f"{len(self._messages)} messages scanned.")
-                break
+            if not silent:
+                pbar.update()
         if not silent:
             pbar.close()        
 
@@ -713,40 +680,6 @@ class FSMOperator:
             string: current state of the statemachine
         """
         return self.states[self.svec.currentstate].trigger_on_vector(self.svec)
-
-    # ## FSM Entry Point.
-    # def run1(self, enforce=False, silent=False ,successtime=300):
-    #     """Statemachine Operator Entry functions
-
-    #     Args:
-    #         enforce (bool, optional): if True runs statemachine even if results are already available. Defaults to False.
-    #         silent (bool, optional): do not show progress bar if True. Defaults to False.
-    #         successtime (int, optional): How long an operation cycle needs to stay in state targetoperation to be assessed successful. Defaults to 300.
-    #     """
-    #     self._successtime = successtime
-    #     if len(self.results['starts']) == 0 or enforce:
-    #         self.init_results()
-
-    #         if silent:
-    #             for i, msg in self._messages.iterrows():
-    #                 self._dorun1(msg)
-    #         else:
-    #             #tqdm disturbes the VSC Debugger - disable for debug purposes please.     
-    #             for i,msg in tqdm(self._messages.iterrows(), total=self._messages.shape[0], ncols=80, mininterval=1, unit=' messages', desc="FSM"):
-    #                 self._dorun1(msg)
-    
-    # def _dorun1(self, msg):
-    #     """helper function for run1
-    #     """
-    #     self.svec.msg = msg
-    #     retsv = self.call_trigger_states()
-    #     for sv in retsv:   
-    #         self.svec = sv
-    #         #print(f"{len(self.results['runlogdetail']):5} {sv}")
-    #         self.results['runlogdetail'].append(copy.deepcopy(sv))
-    #         self._fsm_Service_selector()
-    #         self._fsm_collect_alarms()
-    #         self._fsm_Operating_Cycle()
 
 ##########################################################
     def run2(self, silent=False):
@@ -778,87 +711,3 @@ class FSMOperator:
                     #print(f"Start: {startversuch['no']:3d} xmax: {xmax}, ymax: {ymax:6.0f}, duration: {duration:5.1f}, ramprate: {ramprate / ratedload * 100.0:4.2f} %/s")
             except Exception as err:
                 print(err)
-
-
-#********************************************************
-    # def dorun2_old(self, index_list, startversuch):
-    #             ii = startversuch['no']
-    #             index_list.append(ii)
-
-    #             if not startversuch['run2']:
-
-    #                 data = dmyplant2.get_cycle_data2(self, startversuch, max_length=None, min_length=None, silent=True)
-
-    #                 if not data.empty:
-
-    #                     pl, _ = dmyplant2.detect_edge_left(data, 'Power_PowerAct', startversuch)
-    #                     #pr, _ = detect_edge_right(data, 'Power_PowerAct', startversuch)
-    #                     #sl, _ = detect_edge_left(data, 'Various_Values_SpeedAct', startversuch)
-    #                     #sr, _ = detect_edge_right(data, 'Various_Values_SpeedAct', startversuch)
-
-    #                     self.results['starts'][ii]['title'] = f"{self._e} ----- Start {ii} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
-    #                     #sv_lines = {k:(startversuch[k] if k in startversuch else np.NaN) for k in filterFSM.vertical_lines_times]}
-    #                     sv_lines = [v for v in startversuch[filterFSM.vertical_lines_times]]
-    #                     start = startversuch['starttime'];
-                        
-    #                     # lade die in run1 gesammelten Daten in ein DataFrame, ersetze NaN Werte mit 0
-    #                     backup = {}
-    #                     svdf = pd.DataFrame(sv_lines, index=filterFSM.vertical_lines_times, columns=['FSM'], dtype=np.float64).fillna(0)
-    #                     svdf['RUN2'] = svdf['FSM']
-
-    #                     # intentionally excluded - Dieter 1.3.2022
-    #                     #if svdf.at['speedup','FSM'] > 0.0:
-    #                     #        svdf.at['speedup','RUN2'] = sl.loc.timestamp() - start.timestamp() - np.cumsum(svdf['RUN2'])['starter']
-    #                     #        svdf.at['idle','RUN2'] = svdf.at['idle','FSM'] - (svdf.at['speedup','RUN2'] - svdf.at['speedup','FSM'])
-    #                     if svdf.at['loadramp','FSM'] > 0.0:
-    #                             calc_loadramp = pl.loc.timestamp() - start.timestamp() - np.cumsum(svdf['RUN2'])['synchronize']
-    #                             svdf.at['loadramp','RUN2'] = calc_loadramp
-
-    #                             # collect run2 results.
-    #                             backup['loadramp'] = svdf.at['loadramp','FSM'] # alten Wert merken
-    #                             self.results['starts'][ii]['loadramp'] = calc_loadramp
-
-    #                     with warnings.catch_warnings():
-    #                         warnings.simplefilter("ignore")
-    #                         calc_maxload = pl.val
-    #                         try:
-    #                             calc_ramp = (calc_maxload / self._e['Power_PowerNominal']) * 100 / svdf.at['loadramp','RUN2']
-    #                         except ZeroDivisionError as err:
-    #                             logging.warning(f"calc_ramp: {str(err)}")
-    #                             calc_ramp = np.NaN
-    #                         # doppelte Hosenträger ... hier könnte man ein wenig aufräumen :-)
-    #                         if not np.isfinite(calc_ramp) :
-    #                             calc_ramp = np.NaN
-
-    #                         backup_cumstarttime = np.cumsum(svdf['FSM'])['loadramp']
-    #                         calc_cumstarttime = np.cumsum(svdf['RUN2'])['loadramp']
-    #                     svdf = pd.concat([
-    #                             svdf, 
-    #                             pd.DataFrame.from_dict(
-    #                                     {       'maxload':['-',calc_maxload],
-    #                                             'ramprate':['-',calc_ramp],
-    #                                             'cumstarttime':[backup_cumstarttime, calc_cumstarttime]
-    #                                     }, 
-    #                                     columns=['FSM','RUN2'],
-    #                                     orient='index')]
-    #                             )
-    #                     #display(HTML(svdf.round(2).T.to_html(escape=False)))
-
-    #                     # collect run2 results.
-    #                     self.results['starts'][ii]['maxload'] = calc_maxload
-    #                     self.results['starts'][ii]['ramprate'] = calc_ramp
-    #                     backup['cumstarttime'] = backup_cumstarttime
-    #                     self.results['starts'][ii]['cumstarttime'] = calc_cumstarttime
-
-    #                     self.results['starts'][ii]['backup'] = backup
-    #                     self.results['starts'][ii]['run2'] = True
-
-    # def run2_old(self, rda, silent=False):
-    #     index_list = []
-    #     if silent:
-    #         for n, startversuch in rda.iterrows():
-    #             self.dorun2_old(index_list, startversuch)
-    #     else:
-    #         for n, startversuch in tqdm(rda.iterrows(), total=rda.shape[0], ncols=80, mininterval=1, unit=' starts', desc="FSM Run2"):
-    #             self.dorun2_old(index_list, startversuch)
-    #     return pd.DataFrame([self.results['starts'][s] for s in index_list])
