@@ -14,6 +14,10 @@ from tqdm.auto import tqdm
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 #Various_Bits_CollAlarm
+###########################################################################################
+## nStateVector Data Class
+## hold state switch relevant data and timings
+###########################################################################################
 class nStateVector:
     statechange = False
     laststate = ''
@@ -35,7 +39,10 @@ class nStateVector:
                 f"CSS {self.currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
                 f"CS  {self.currentstate:18}| "
 
-# States und Transferfunktionen, Sammeln von Statebezogenen Daten ... 
+###########################################################################################
+## State class
+## States und Transferfunktionen, Sammeln von Statebezogenen Daten ... 
+###########################################################################################
 class State:
     """class state and its inherits
     check if a transferfunction triggers a statechange based
@@ -61,6 +68,7 @@ class State:
             vector.laststate_start = vector.currentstate_start
             vector.currentstate_start = pd.to_datetime(msg['timestamp'] * 1e6)
         return vector
+
 
 class LoadrampStateV2(State):
     """Inherits State and provides a calulated end of the loadramp
@@ -93,7 +101,11 @@ class LoadrampStateV2(State):
             self._full_load_timestamp = None
 
         return vector
-class FSM: #generic State Machine class
+
+###########################################################################################
+## abstract Base FSM class
+###########################################################################################
+class FSM:
     """base class for FSM Definitions
     """
     def __init__(self):
@@ -101,15 +113,6 @@ class FSM: #generic State Machine class
         self._initial_state = None
         self.svec = None
         self._states = None
-        #z.B:
-        # {
-        #         'state1': State('state1',[
-        #             { 'trigger':'1234 text', 'new-state': 'state2'},   # message name + text defines a trigger.          
-        #             ]),
-        #         'state2': State('state2',[
-        #             { 'trigger':'1234 text', 'new-state': 'state1'},         
-        #             ]),
-        # }
 
     @property
     def initial_state(self):
@@ -120,12 +123,13 @@ class FSM: #generic State Machine class
         return self._states
 
     def initialize_statevector(self, first_message):
-        self.svec = nStateVector()
-        self.svec.statechange = True
-        self.svec.laststate = 'init'
-        self.svec.laststate_start = first_message
-        self.svec.currentstate = self.initial_state
-        self.svec.currentstate_start = first_message
+        v = nStateVector()
+        v.statechange = True
+        v.laststate = 'init'
+        v.laststate_start = first_message
+        v.currentstate = self.initial_state
+        v.currentstate_start = first_message
+        self.svec = v
         return self.svec        
 
     def call_trigger_states(self, nsvec):
@@ -134,8 +138,7 @@ class FSM: #generic State Machine class
 
     def dot(self, fn):
         """Create a FSM Diagram of specified states in *.dot Format
-        Args:
-            fn : Filename
+        fn : Filename
         """
         with open(fn, 'w') as f:
             f.write("digraph G {\n")
@@ -148,8 +151,9 @@ class FSM: #generic State Machine class
                     f.write(f'    {s.replace("-","")} -> {t["new-state"].replace("-","")} [label="{t["trigger"]}"]\n')
             f.write("}\n")
 
-# the Statemachine Definitions:
-# devices
+    def collect_data(self, nsvec, results):
+        pass
+
 ###########################################################################################
 ## Oil Pump FSM
 ###########################################################################################
@@ -166,7 +170,7 @@ class OilPumpFSM(FSM):
                 'OFF': State('OFF',
                     [{ 'trigger':'1259 Demand oil pump on', 'new-state': 'ON'}]),
         }
-    def collect_data_in_run2(self, nsvec, results):
+    def collect_data(self, nsvec, results):
         if nsvec[self.name].statechange:
             nsvec['oil_pump'] = nsvec[self.name].currentstate
             results['oilpumptiming'].append({
@@ -199,7 +203,8 @@ class ServiceSelectorFSM(FSM):
                     { 'trigger':'1226 Service selector switch Manual', 'new-state': 'MAN'},         
                     ]),
         }
-    def collect_data_in_run2(self, nsvec, results):
+    def collect_data(self, nsvec, results):
+        # do in case of a statchange:
         if nsvec[self.name].statechange:
             nsvec['service_selector'] = nsvec[self.name].currentstate
             results['serviceselectortiming'].append({
@@ -285,8 +290,8 @@ class startstopFSM(FSM):
         durations['cumstarttime'] = sum([v for k,v in durations.items() if k in self.start_timing_states])
         results['starts'][sv['no']].update(durations)
 
-    def collect_data_in_run2(self, nsvec, results):
-        # do at every message
+    def collect_data(self, nsvec, results):
+        # do with every message
         key = 'starts' if nsvec['in_operation'] == 'on' else 'stops'
         if nsvec['msg']['severity'] == 800:
             results[key][-1]['alarms'].append({
@@ -298,8 +303,10 @@ class startstopFSM(FSM):
                 'state':nsvec[self.name].currentstate, 
                 'msg': nsvec['msg']
                 })
-        # do at statechange
+
+        # do in case of a statechange
         if nsvec[self.name].statechange:
+            # start a 'on' cycle
             if nsvec[self.name].currentstate == 'startpreparation':
                 results['stops'][-1]['endtime'] = nsvec[self.name].currentstate_start
                 results['stops'][-1]['count_alarms'] = len(results['stops'][-1]['alarms'])
@@ -332,6 +339,8 @@ class startstopFSM(FSM):
                 results['starts_counter'] += 1 # index for next start
                 nsvec['startno'] = results['starts_counter']
                 nsvec['in_operation'] = 'on'
+
+            # do while 'on' in all states
             elif nsvec['in_operation'] == 'on': 
                 results['starts'][-1]['mode'] = nsvec['service_selector']
                 rec = {'start':nsvec[self.name].laststate_start, 'end':nsvec[self.name].currentstate_start}
@@ -341,6 +350,8 @@ class startstopFSM(FSM):
                     results['starts'][-1]['startstoptiming'][nsvec[self.name].laststate].append(rec)
 
             if nsvec[self.name].currentstate == 'standstill':
+                
+                # end an 'on' cycle, harvest collected data
                 if nsvec['in_operation'] == 'on':
                     # start finished
                     results['starts'][-1]['endtime'] = nsvec[self.name].currentstate_start
@@ -348,7 +359,7 @@ class startstopFSM(FSM):
                     sv = results['starts'][-1]
                     phases = list(sv['startstoptiming'].keys())
 
-                    # some sense checks, mostly for commissioning or Test cycles 
+                    # handle a special case, switching back and forth between 'targetoperation' and 'rampdown'  
                     if 'targetoperation' in phases:
                         tlr = sv['startstoptiming']['targetoperation']
                         tlr = [{'start':tlr[0]['start'], 'end':tlr[-1]['end']}] # just use the first start and the last end time. (mulitple rampdown cycles)
@@ -357,12 +368,18 @@ class startstopFSM(FSM):
 
                     self._harvest_timings(sv, phases, results)
 
+                    # assess if a start is successful:
+                    # ... if it reaches 'targetoperation'
                     if 'targetoperation' in results['starts'][-1]:
-                        #successful if the targetoperation run was longer than specified minimal runtime
+                        # other criterias may apply.
+                        # ... and it stayed longer than 'successtime'
                         results['starts'][-1]['success'] = (results['starts'][-1]['targetoperation'] > self._successtime)
+
+                    # count alarms an warnings
                     results['starts'][-1]['count_alarms'] = len(results['starts'][-1]['alarms'])
                     results['starts'][-1]['count_warnings'] = len(results['starts'][-1]['warnings'])
 
+                # change to 'off' mode
                 nsvec['in_operation'] = 'off'
                 results['stops_counter'] += 1 # index for next start
                 results['stops'].append({
@@ -402,25 +419,27 @@ class FSMOperator:
         self.extra_messages = []
 
         #register statehandlers
+        #TODO: wite a registering interface so that all implementation steps
+        # are handled in a kind of one stop shop.  
         self.startstopHandler = startstopFSM(self, self._e)
         self.serviceSelectorHandler = ServiceSelectorFSM()
         self.oilpumpHandler = OilPumpFSM()
 
-        #TODO:
-        #- rewrite the state vector as dict to include the states for all registered 
+        #initialize common StateVector dict
         self.nsvec = {
             self.startstopHandler.name: self.startstopHandler.initialize_statevector(self.first_message),
             self.serviceSelectorHandler.name: self.serviceSelectorHandler.initialize_statevector(self.first_message),
+            self.oilpumpHandler.name: self.oilpumpHandler.initialize_statevector(self.first_message),
             'in_operation': 'off',
             'service_selector':  self.serviceSelectorHandler.initial_state,
             'oil_pump': self.oilpumpHandler._initial_state,
             'msg': 'none',
             'startno': 0
         }
+        self.init_results()
 
         self.pfn = self._e._fname + '_statemachine.pkl'
         self.hdfn = self._e._fname + '_statemachine.hdf'
-        self.init_results()
 
     def init_results(self):
         self.results = {
@@ -575,6 +594,13 @@ class FSMOperator:
 #################################################################################################################
 ### die Finite State Machines:
 
+    def debug_msg(self, titel, msgque, max=100000, debug=False):
+        if debug:
+            print(titel, len(msgque), ' items')
+            for msg in msgque[:max]:
+                print(f"{msg['timestamp']} {pd.to_datetime(msg['timestamp'] * 1000000)} {msg['name']} {msg['severity']} {msg['message']}")
+            print()
+
     def merge_extra_messages(self, messages_queue, extra_messages):
         """extra messages are generated by special state trigger functions,
         which e.g. estimate missing messages like '9047 target load reached'
@@ -598,13 +624,6 @@ class FSMOperator:
         messages_queue.sort(key=lambda x: x['timestamp'], reverse=False)
         return messages_queue, extra_messages
 
-    def debug_msg(self, titel, msgque, max=100000, debug=False):
-        if debug:
-            print(titel, len(msgque), ' items')
-            for msg in msgque[:max]:
-                print(f"{msg['timestamp']} {pd.to_datetime(msg['timestamp'] * 1000000)} {msg['name']} {msg['severity']} {msg['message']}")
-            print()
-
 
     def run0(self, enforce=False, silent=False ,debug=False):
         """Statemachine Operator Run0 - collect e.g. calculated future events in self.extra_messages 
@@ -616,7 +635,7 @@ class FSMOperator:
         if len(self.results['starts']) == 0 or enforce:
             self.init_results()            
         self.message_queue = [m for i,m in self._messages.iterrows()]
-        #vecstore = copy.deepcopy(self.svec) # store statevector
+
         vecstore = copy.deepcopy(self.nsvec) # store statevector
         if not silent:
             pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM")
@@ -628,6 +647,8 @@ class FSMOperator:
             if not silent:
                 pbar.update()
         self.nsvec = vecstore # restore statevector
+
+        # merge original and extra messages, sortbmessaged,  make sure timing is monoton upwards
         self.debug_msg('extra messages before merge:',self.extra_messages, debug=debug)
         self.message_queue, self.extra_messages = self.merge_extra_messages(self.message_queue, self.extra_messages)
         self.debug_msg('extra messages after merge:',self.extra_messages, debug=debug)
@@ -635,7 +656,7 @@ class FSMOperator:
             pbar.close()        
 
     def run1(self, silent=False ,debug= False, successtime=300):
-        """Statemachine Operator Run 1 - using extra messages injected in run0 
+        """Statemachine Operator Run 1 - using also extra messages injected in run0 
 
         Args:
             silent (bool, optional): do not show progress bar if True. Defaults to False.
@@ -647,18 +668,19 @@ class FSMOperator:
             pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM")
 
         for msg in self.message_queue:
+            # inject new message into StatesVector
             self.nsvec['msg'] = msg
             self.nsvec = self.startstopHandler.call_trigger_states(self.nsvec)
             self.nsvec = self.serviceSelectorHandler.call_trigger_states(self.nsvec)
             self.nsvec = self.oilpumpHandler.call_trigger_states(self.nsvec)
             
+            # log Statesvector details
             self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
 
-            # Daten Auswerten:
-            #self._do_at_every_message()
-            self.startstopHandler.collect_data_in_run2(self.nsvec, self.results)
-            self.serviceSelectorHandler.collect_data_in_run2(self.nsvec, self.results)
-            self.oilpumpHandler.collect_data_in_run2(self.nsvec, self.results)
+            # collect & harvest data:
+            self.startstopHandler.collect_data(self.nsvec, self.results)
+            self.serviceSelectorHandler.collect_data(self.nsvec, self.results)
+            self.oilpumpHandler.collect_data(self.nsvec, self.results)
 
             if not silent:
                 pbar.update()
@@ -666,6 +688,12 @@ class FSMOperator:
             pbar.close()        
 
     def run2(self, silent=False):
+        """Statemachine Operator Run 2 - uses timings collected in previos runs to download 'Power_PowerAct'
+        in 1 sec. Intervals around loadramp phase. Use the curve to collect additional and more accurate data
+        on loadramps.
+
+        silent (Boolean): whether a progress bar is visible or not. 
+        """
         ratedload = self._e['Power_PowerNominal']
         if not silent:
             pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=1, unit=' messages', desc="FSM")
