@@ -2,6 +2,7 @@ import copy
 from datetime import datetime
 import logging
 import os
+import sys
 import pickle
 import warnings
 from pprint import pprint as pp, pformat as pf
@@ -9,7 +10,7 @@ import arrow
 import dmyplant2
 import numpy as np
 import pandas as pd
-from tqdm import tqdm_notebook as tqdm
+from tqdm import tqdm
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -647,7 +648,7 @@ class FSMOperator:
 
         vecstore = copy.deepcopy(self.nsvec) # store statevector
         if not silent:
-            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM")
+            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM", file=sys.stdout)
         for msg in self.message_queue:
             self.nsvec['msg'] = msg
             self.nsvec = self.startstopHandler.call_trigger_states(self.nsvec)
@@ -674,7 +675,7 @@ class FSMOperator:
         self.startstopHandler.set_successtime(successtime)
 
         if not silent:
-            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM")
+            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM", file=sys.stdout)
 
         for msg in self.message_queue:
             # inject new message into StatesVector
@@ -705,7 +706,7 @@ class FSMOperator:
         """
         ratedload = self._e['Power_PowerNominal']
         if not silent:
-            pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=1, unit=' messages', desc="FSM")
+            pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=1, unit=' messages', desc="FSM", file=sys.stdout)
 
         for i, startversuch in enumerate(self.results['starts']):
             sno = startversuch['no']

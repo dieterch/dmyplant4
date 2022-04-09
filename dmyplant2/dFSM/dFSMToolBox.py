@@ -1,3 +1,5 @@
+import pandas as pd
+import numpy as np
 from .dFSMData import load_data
 
 def loadramp_edge_detect(fsm, startversuch, periodfactor=3, helplinefactor=0.8):
@@ -46,7 +48,6 @@ def xwhere2(data,key,level):
     pts = data['datetime'][1:][np.array(data[key][1:]-level) * np.array(data[key][:-1]-level) < 0]
     newlist =[x for p in list(pts.index) for x in [p-1,p]]
     return data.iloc[newlist]
-
 
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     r"""Smooth (and optionally differentiate) data with a Savitzky-Golay filter.
