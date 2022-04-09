@@ -22,10 +22,11 @@ from dmyplant2.dPlot import (
     bokeh_show,
     cvset)
 from dmyplant2.dFSM import (
-    FSM, 
+    #FSM, 
     FSMOperator, 
     filterFSM, 
     FSM_splot,
+    FSM_VLine,
     FSM_add_Notations,
     FSM_add_Alarms,
     FSM_add_Warnings,
@@ -38,8 +39,10 @@ from dmyplant2.dFSM import (
     disp_warnings,
     alarms_pareto, 
     warnings_pareto,
-    states_lines,
+    #states_lines,
     loadramp_edge_detect,
+    xwhere,
+    xwhere2,
     #detect_edge_right, 
     #detect_edge_left,
     figures)

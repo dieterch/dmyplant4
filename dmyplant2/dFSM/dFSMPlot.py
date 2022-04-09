@@ -23,6 +23,13 @@ def FSM_splot(fsm,startversuch, data, dset, figsize=(16,10)):
     fig = dbokeh_chart(data, dset, title=ftitle, grid=False, figsize=figsize, style='line', line_width=0)
     return fig
 
+def FSM_VLine(fig, txt, x_pos, y_pos, color='rgba(0,0,0,0.8)', line='solid', alpha=1.0):
+    fig.add_layout(Span(location=x_pos,dimension='height', line_color=color, line_dash=line, line_alpha=alpha))
+    fig.add_layout(Label(x=x_pos, y=y_pos, x_units='data',y_units='screen',angle=np.pi / 2,
+                        text_font_size='8pt', text_color ='darkslategray',text_alpha=0.8,render_mode='css',
+                        text=txt))
+    return fig    
+
 def FSM_add_Notations(fig,fsm,startversuch):
 
     # annotations: 1 vertical line for every state change ... descriptive text.
@@ -39,10 +46,13 @@ def FSM_add_Notations(fig,fsm,startversuch):
         'duration': 0.0
         }
     for k in lines.keys():
-        fig.add_layout(Span(location=lines[k]['time'],dimension='height', line_color='red', line_dash='solid', line_alpha=0.4))
-        fig.add_layout(Label(x=lines[k]['time'], y=2, x_units='data',y_units='screen',angle=np.pi / 2,
-                            text_font_size='8pt', text_color ='darkslategray',text_alpha=0.8,render_mode='css',
-                            text=f"{lines[k]['time'].strftime('%Y-%m-%d %H:%M:%S')} | {k.upper()} | {lines[k]['duration']:0.2f}"))
+        FSM_VLine(
+            fig, txt=f"{lines[k]['time'].strftime('%Y-%m-%d %H:%M:%S')} | {k.upper()} | {lines[k]['duration']:0.2f}", 
+            x_pos=lines[k]['time'], y_pos=2, color='red', line='solid', alpha=0.4)
+        # fig.add_layout(Span(location=lines[k]['time'],dimension='height', line_color='red', line_dash='solid', line_alpha=0.4))
+        # fig.add_layout(Label(x=lines[k]['time'], y=2, x_units='data',y_units='screen',angle=np.pi / 2,
+        #                     text_font_size='8pt', text_color ='darkslategray',text_alpha=0.8,render_mode='css',
+        #                     text=f"{lines[k]['time'].strftime('%Y-%m-%d %H:%M:%S')} | {k.upper()} | {lines[k]['duration']:0.2f}"))
 
     # Nominal Power as horizontal line
     fig.add_layout(Span(location=fsm._e['Power_PowerNominal'],dimension='width',x_range_name='default', y_range_name='0',line_color='green', line_dash='solid', line_alpha=0.4))
@@ -64,15 +74,27 @@ def FSM_add_Notations(fig,fsm,startversuch):
         ramp = fig.line(x=[x0,x1],y=[y0,y1], y_range_name='0', line_color='green', line_dash='solid', line_alpha=0.4, line_width=1)                            
     return fig
 
-def FSM_add_Alarms(fig,fsm,startversuch):
+def FSM_add_Alarms2(fig,fsm,startversuch):
     al_lines = disp_alarms(startversuch)
     add_dbokeh_vlines(al_lines,fig,line_color='red', line_dash='dashed', line_alpha=0.4, line_width=2)
     return fig
 
-def FSM_add_Warnings(fig,fsm,startversuch):
+def FSM_add_Alarms(fig,fsm,startversuch): 
+    for al in startversuch['alarms']:
+        FSM_VLine(fig, txt=f"{pd.to_datetime(int(al['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} | {al['msg']['name']} | {al['msg']['message']}", 
+            x_pos=al['msg']['timestamp'], y_pos=2, color='red', line='dashed', alpha=0.4)
+    return fig        
+
+def FSM_add_Warnings2(fig,fsm,startversuch):
     w_lines = disp_warnings(startversuch)
     add_dbokeh_vlines(w_lines,fig,line_color='#d5ac13', line_dash='dashed', line_alpha=0.4, line_width=2)
     return fig
+
+def FSM_add_Warnings(fig,fsm,startversuch): 
+    for wn in startversuch['warnings']:
+        FSM_VLine(fig, txt=f"{pd.to_datetime(int(wn['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} | {wn['msg']['name']} | {wn['msg']['message']}", 
+            x_pos=wn['msg']['timestamp'], y_pos=2, color='red', line='dashed', alpha=0.4)
+    return fig        
 
 # def FSMPlot_Start(fsm,startversuch, data, vset, dset, figsize=(16,10)):
 #     von_dt=pd.to_datetime(startversuch['starttime']); von=int(von_dt.timestamp())
