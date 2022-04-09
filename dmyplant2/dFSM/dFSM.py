@@ -9,7 +9,7 @@ import arrow
 import dmyplant2
 import numpy as np
 import pandas as pd
-from tqdm.auto import tqdm
+from tqdm import tqdm_notebook as tqdm
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
