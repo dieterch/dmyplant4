@@ -13,7 +13,7 @@ from scipy.stats.distributions import chi2
 
 import arrow
 from pprint import pprint as pp, pformat as pf
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from IPython.display import HTML, display
 
 # class HandleID():
