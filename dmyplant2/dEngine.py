@@ -676,8 +676,9 @@ class Engine:
             fn = self._fname + fr"_{timeCycle}_{int(slot):02d}.hdf"
             df, np_from = check_and_loadfile(p_from, fn, forceReload)
 
+            tol = 1 # x sec Toleranz
             np_to = arrow.get(p_to).shift(seconds=-timeCycle)
-            if np_from.to('Europe/Vienna') < np_to.to('Europe/Vienna'):
+            if np_from.to('Europe/Vienna').shift(seconds=tol) < np_to.to('Europe/Vienna'):
                 ndf = self._mp.hist_data(
                     self['id'], itemIds, np_from, p_to, timeCycle, silent=silent)
 

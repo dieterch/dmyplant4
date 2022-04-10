@@ -480,25 +480,25 @@ class FSMOperator:
         if os.path.exists(self.pfn):
             with open(self.pfn, 'rb') as handle:
                 self.results = pickle.load(handle)
-        if os.path.exists(self.hdfn):
-            dlogdetail = pd.read_hdf(self.hdfn,"runlogdetail")
-            self.results['runlogdetail'] = list(dlogdetail[0])
+        # if os.path.exists(self.hdfn):
+        #     dlogdetail = pd.read_hdf(self.hdfn,"runlogdetail")
+        #     self.results['runlogdetail'] = list(dlogdetail[0])
 
     def store(self):
         self.unstore()
-        runlogdetail = self.results['runlogdetail']
-        del self.results['runlogdetail']
-        dlogdetail = pd.DataFrame(runlogdetail)
-        dlogdetail.to_hdf(self.hdfn, 'runlogdetail', complevel=6)
+        # runlogdetail = self.results['runlogdetail']
+        # del self.results['runlogdetail']
+        # dlogdetail = pd.DataFrame(runlogdetail)
+        # dlogdetail.to_hdf(self.hdfn, 'runlogdetail', complevel=6)
         with open(self.pfn, 'wb') as handle:
-            pickle.dump(self.results, handle, protocol=4)
-        self.results['runlogdetail'] = runlogdetail
+            pickle.dump(self.results, handle, protocol=5)
+        #self.results['runlogdetail'] = runlogdetail
 
     def unstore(self):
         if os.path.exists(self.pfn):
             os.remove(self.pfn)
-        if os.path.exists(self.hdfn):
-            os.remove(self.hdfn)
+        # if os.path.exists(self.hdfn):
+        #     os.remove(self.hdfn)
 
     ## message handling
     def load_messages(self,e, p_from=None, p_to=None, skip_days=None, untilnow=False):
@@ -648,7 +648,7 @@ class FSMOperator:
 
         vecstore = copy.deepcopy(self.nsvec) # store statevector
         if not silent:
-            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM", file=sys.stdout)
+            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM0", file=sys.stdout)
         for msg in self.message_queue:
             self.nsvec['msg'] = msg
             self.nsvec = self.startstopHandler.call_trigger_states(self.nsvec)
@@ -675,7 +675,7 @@ class FSMOperator:
         self.startstopHandler.set_successtime(successtime)
 
         if not silent:
-            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM", file=sys.stdout)
+            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM1", file=sys.stdout)
 
         for msg in self.message_queue:
             # inject new message into StatesVector
@@ -706,7 +706,7 @@ class FSMOperator:
         """
         ratedload = self._e['Power_PowerNominal']
         if not silent:
-            pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=1, unit=' messages', desc="FSM", file=sys.stdout)
+            pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=1, unit=' starts', desc="FSM2", file=sys.stdout)
 
         for i, startversuch in enumerate(self.results['starts']):
             sno = startversuch['no']
