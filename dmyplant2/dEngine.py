@@ -776,8 +776,12 @@ class Engine:
             fn = self._fname + fr"_{timeCycle}_{int(slot):02d}{suffix}.hdf"
             df, np_from, itemIds = check_and_loadfile(p_from, fn, itemIds, forceReload)
 
+            tol = 1 # x sec Toleranz
             np_to = arrow.get(p_to).shift(seconds=-timeCycle)
-            if np_from.to('Europe/Vienna') < np_to.to('Europe/Vienna'):
+            t0 = np_from.to('Europe/Vienna').shift(seconds=tol)
+            t1 = np_to.to('Europe/Vienna')
+            if np_from.to('Europe/Vienna').shift(seconds=tol)< np_to.to('Europe/Vienna'):
+                print(f"*{t0} < {t1}, {t0 < t1}, {(t1.timestamp()-t0.timestamp()):0.1f} sec")
                 ndf = self._mp.hist_data(
                     self['id'], itemIds, np_from, p_to, timeCycle, silent=silent)
 
@@ -790,6 +794,9 @@ class Engine:
                     print(ldf.head(5))
                     print('...')
                     print(ldf.tail(5))
+            else:
+                pass
+                #print(f"-{t0} < {t1}, {t0 < t1}, {(t1.timestamp()-t0.timestamp()):0.1f} sec")
 
             df.reset_index(drop=True, inplace=True)
 
@@ -801,8 +808,8 @@ class Engine:
                 df = userfunc(df)
 
             return df
-        except:
-            raise ValueError("Engine hist_data2 Error")
+        except Exception as err:
+            raise ValueError(f"Engine hist_data2 Error: {str(err)}")
 
 ###########################################
 
