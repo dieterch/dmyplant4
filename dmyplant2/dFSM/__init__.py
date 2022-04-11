@@ -1,3 +1,4 @@
+__version__ = "0.0.1"
 from .dFSMData import (
     load_data, 
     get_cycle_data, 
@@ -21,6 +22,7 @@ from .dFSMResults import (
 )
 from .dFSMPlot import (
     FSM_splot,
+    FSM_splotBC,
     FSM_VLine,
     FSM_add_Notations,
     FSM_add_Alarms,

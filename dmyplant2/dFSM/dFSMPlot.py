@@ -7,20 +7,30 @@ from bokeh.models import ColumnDataSource, Label, Text, Span, HoverTool #, Range
 from bokeh.plotting import figure, output_file, show
 
 from IPython.display import HTML, display
-from dmyplant2 import dbokeh_chart, bokeh_show, add_dbokeh_vlines, add_dbokeh_hlines 
+from dmyplant2 import dbokeh_chart, bokeh_chart, bokeh_show #, add_dbokeh_vlines, add_dbokeh_hlines 
 from .dFSM import filterFSM
 from .dFSMResults import disp_alarms, disp_warnings #, detect_edge_right, detect_edge_left, loadramp_edge_detect
 import warnings
 warnings.simplefilter(action='ignore', category=UserWarning)
 
-def FSM_splot(fsm,startversuch, data, dset, figsize=(16,10)):
+def FSM_splot(fsm,startversuch, data, dset, legend=True, figsize=(16,10)):
     von_dt=pd.to_datetime(startversuch['starttime']); von=int(von_dt.timestamp())
     bis_dt=pd.to_datetime(startversuch['endtime']); bis=int(bis_dt.timestamp())
 
     ftitle = f"{fsm._e} ----- Start {startversuch['no']} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
     print(f"von: {von_dt.strftime('%d.%m.%Y %H:%M:%S')} bis: {bis_dt.strftime('%d.%m.%Y %H:%M:%S')}")
 
-    fig = dbokeh_chart(data, dset, title=ftitle, grid=False, figsize=figsize, style='line', line_width=0)
+    fig = dbokeh_chart(data, dset, title=ftitle, grid=False, legend=legend, figsize=figsize, style='line', line_width=0)
+    return fig
+
+def FSM_splotBC(fsm,startversuch, source, dset, x_ax=None, x_range=None, figsize=(16,10)):
+    von_dt=pd.to_datetime(startversuch['starttime']); von=int(von_dt.timestamp())
+    bis_dt=pd.to_datetime(startversuch['endtime']); bis=int(bis_dt.timestamp())
+
+    ftitle = f"{fsm._e} ----- Start {startversuch['no']} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
+    print(f"von: {von_dt.strftime('%d.%m.%Y %H:%M:%S')} bis: {bis_dt.strftime('%d.%m.%Y %H:%M:%S')}")
+
+    fig = bokeh_chart(source, dset, title=ftitle, grid=False, figsize=figsize, style='line', line_width=0)
     return fig
 
 def FSM_VLine(fig, txt, x_pos, y_pos, color='rgba(0,0,0,0.8)', line='solid', alpha=1.0):
@@ -81,7 +91,7 @@ def FSM_add_Alarms2(fig,fsm,startversuch):
 
 def FSM_add_Alarms(fig,fsm,startversuch): 
     for al in startversuch['alarms']:
-        FSM_VLine(fig, txt=f"{pd.to_datetime(int(al['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} | {al['msg']['name']} | {al['msg']['message']}", 
+        FSM_VLine(fig, txt=f"{pd.to_datetime(int(al['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} | {al['msg']['severity']} | {al['msg']['name']} | {al['msg']['message']}", 
             x_pos=al['msg']['timestamp'], y_pos=2, color='red', line='dashed', alpha=0.4)
     return fig        
 
@@ -92,7 +102,7 @@ def FSM_add_Warnings2(fig,fsm,startversuch):
 
 def FSM_add_Warnings(fig,fsm,startversuch): 
     for wn in startversuch['warnings']:
-        FSM_VLine(fig, txt=f"{pd.to_datetime(int(wn['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} | {wn['msg']['name']} | {wn['msg']['message']}", 
+        FSM_VLine(fig, txt=f"{pd.to_datetime(int(wn['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} | {wn['msg']['severity']} | {wn['msg']['name']} | {wn['msg']['message']}", 
             x_pos=wn['msg']['timestamp'], y_pos=2, color='red', line='dashed', alpha=0.4)
     return fig        
 

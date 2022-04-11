@@ -706,7 +706,7 @@ class FSMOperator:
         """
         ratedload = self._e['Power_PowerNominal']
         if not silent:
-            pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=1, unit=' starts', desc="FSM2", file=sys.stdout)
+            pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=2, unit=' starts', desc="FSM2", file=sys.stdout)
 
         for i, startversuch in enumerate(self.results['starts']):
             sno = startversuch['no']

@@ -38,6 +38,17 @@ def cvset(mp, dset):
     vset = [d for d in vset if not di.loc[di.name.str.fullmatch(d)].empty]
     return vset
 
+def cplotdef(mp, lfigures):
+    for f in lfigures:
+        print(f, end=', ')
+        plotdef = list(lfigures.keys())
+        vset = []
+        for p in plotdef:
+            dset = lfigures[p]
+            vset += cvset(mp, dset)
+        vset = list(set(vset))
+    return plotdef, vset
+
 def _idx(n, s, e, x):
     return int(n * (x - s) / (e - s)+1)
 
@@ -210,7 +221,7 @@ def bokeh_chart(source, pltcfg, x_ax='datetime', x_ax_unit=None, title=None, gri
 
     if (x_ax == 'datetime'): #seperate constructors for object for datetime or no datetime x-axis
         p = figure( plot_width=mwidth, plot_height=mheight, x_axis_label=None, x_axis_type='datetime',
-        x_range=x_range, y_range=y_range, tools=TOOLS )
+        x_range=x_range, y_range=y_range, tools=TOOLS)
     else:
         p = figure( plot_width=mwidth, plot_height=mheight, x_axis_label=x_axis_label,
             tools=TOOLS, x_range=x_range, y_range=y_range)
@@ -269,22 +280,38 @@ def bokeh_chart(source, pltcfg, x_ax='datetime', x_ax_unit=None, title=None, gri
             # func = getattr(p, style) #to choose between different plotting styles
             # renderers.append(func(source=source, x=x_ax, y=col, #circle or line
             # color=color, y_range_name=str(i), legend_label=col, line_width=linewidth))
-            if style == 'line':
-                func = getattr(p, 'line') #to choose between different plotting styles
-                renderers.append(func(source=source, x=x_ax, y=col, #circle or line
-                color=color, y_range_name=str(i), legend_label=col, line_width=linewidth))
-            if style == 'circle':
-                func = getattr(p, 'circle') #to choose between different plotting styles
-                renderers.append(func(source=source, x=x_ax, y=col, #circle or line
-                color=color, y_range_name=str(i), legend_label=col, line_width=linewidth))
-            if style == 'both':
-                func = getattr(p, 'line') #to choose between different plotting styles
-                renderers.append(func(source=source, x=x_ax, y=col, #circle or line
-                color=color, y_range_name=str(i), legend_label=col, line_width=linewidth))
-                func = getattr(p, 'circle') #to choose between different plotting styles
-                renderers.append(func(source=source, x=x_ax, y=col, #circle or line
-                color=color, y_range_name=str(i), legend_label=col, line_width=linewidth))
-
+            if legend:
+                if style == 'line':
+                    func = getattr(p, 'line') #to choose between different plotting styles
+                    renderers.append(func(source=source, x=x_ax, y=col,  #circle or line
+                    color=color, y_range_name=str(i), legend_label=col, line_width=linewidth))
+                if style == 'circle':
+                    func = getattr(p, 'circle') #to choose between different plotting styles
+                    renderers.append(func(source=source, x=x_ax, y=col,  #circle or line
+                    color=color, y_range_name=str(i), legend_label=col, line_width=linewidth))
+                if style == 'both':
+                    func = getattr(p, 'line') #to choose between different plotting styles
+                    renderers.append(func(source=source, x=x_ax, y=col,  #circle or line
+                    color=color, y_range_name=str(i), legend_label=col, line_width=linewidth))
+                    func = getattr(p, 'circle') #to choose between different plotting styles
+                    renderers.append(func(source=source, x=x_ax, y=col,  #circle or line
+                    color=color, y_range_name=str(i), legend_label=col, line_width=linewidth))
+            else:
+                if style == 'line':
+                    func = getattr(p, 'line') #to choose between different plotting styles
+                    renderers.append(func(source=source, x=x_ax, y=col, #circle or line
+                    color=color, y_range_name=str(i), line_width=linewidth))
+                if style == 'circle':
+                    func = getattr(p, 'circle') #to choose between different plotting styles
+                    renderers.append(func(source=source, x=x_ax, y=col,  #circle or line
+                    color=color, y_range_name=str(i), line_width=linewidth))
+                if style == 'both':
+                    func = getattr(p, 'line') #to choose between different plotting styles
+                    renderers.append(func(source=source, x=x_ax, y=col, #circle or line
+                    color=color, y_range_name=str(i), line_width=linewidth))
+                    func = getattr(p, 'circle') #to choose between different plotting styles
+                    renderers.append(func(source=source, x=x_ax, y=col, #circle or line
+                    color=color, y_range_name=str(i), line_width=linewidth))
 
             tooltips.append((col, '@{'+col +'}{0.2 f} '+unit[-1]))  # or 0.0 a
 
