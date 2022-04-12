@@ -760,11 +760,11 @@ class Engine:
                                 list(ldf['time'][-2:-1])[0]).to('Europe/Vienna')
                             # list(ldf['time'][-2:-1])[0] + timeCycle)
                             # new starting point ...
-                            if debug:
-                                print(f"\nitemIds: {set(itemIds)}, Shape={ldf.shape}, from: {p_from.format('DD.MM.YYYY - HH:mm:ss')}, to:   {last_p_to.format('DD.MM.YYYY - HH:mm:ss')}, loaded from {fn}")
-                                print(ldf.head(5))
-                                print('...')
-                                print(ldf.tail(5))
+                            # if debug:
+                            #     print(f"\nitemIds: {set(itemIds)}, Shape={ldf.shape}, from: {p_from.format('DD.MM.YYYY - HH:mm:ss')}, to:   {last_p_to.format('DD.MM.YYYY - HH:mm:ss')}, loaded from {fn}")
+                            #     print(ldf.head(5))
+                            #     print('...')
+                            #     print(ldf.tail(5))
                 except:
                     pass
             return ldf, last_p_to, itemIds
@@ -782,7 +782,8 @@ class Engine:
             t0 = np_from.to('Europe/Vienna').shift(seconds=tol)
             t1 = np_to.to('Europe/Vienna')
             if np_from.to('Europe/Vienna').shift(seconds=tol)< np_to.to('Europe/Vienna'):
-                print(f"*{t0} < {t1}, {t0 < t1}, {(t1.timestamp()-t0.timestamp()):0.1f} sec")
+                if debug: 
+                    print(f"*{t0} < {t1}, {t0 < t1}, {(t1.timestamp()-t0.timestamp()):0.1f} sec")
                 ndf = self._mp.hist_data(
                     self['id'], itemIds, np_from, p_to, timeCycle, silent=silent)
 
@@ -790,11 +791,11 @@ class Engine:
                 #df = df.append(ndf)
                 df = pd.concat([df,ndf])
 
-                if debug:
-                    print(f"\nitemIds: {set(itemIds)}, Shape={ndf.shape}, from: {np_from.format('DD.MM.YYYY - HH:mm:ss')}, to:   {p_to.format('DD.MM.YYYY - HH:mm:ss')}, added to {fn}")
-                    print(ldf.head(5))
-                    print('...')
-                    print(ldf.tail(5))
+                # if debug:
+                #     print(f"\nitemIds: {set(itemIds)}, Shape={ndf.shape}, from: {np_from.format('DD.MM.YYYY - HH:mm:ss')}, to:   {p_to.format('DD.MM.YYYY - HH:mm:ss')}, added to {fn}")
+                #     print(ldf.head(5))
+                #     print('...')
+                #     print(ldf.tail(5))
             else:
                 pass
                 #print(f"-{t0} < {t1}, {t0 < t1}, {(t1.timestamp()-t0.timestamp()):0.1f} sec")
