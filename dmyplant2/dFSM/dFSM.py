@@ -697,7 +697,7 @@ class FSMOperator:
         if not silent:
             pbar.close()        
 
-    def run2(self, silent=False):
+    def run2(self, silent=False, debug=False):
         """Statemachine Operator Run 2 - uses timings collected in previos runs to download 'Power_PowerAct'
         in 1 sec. Intervals around loadramp phase. Use the curve to collect additional and more accurate data
         on loadramps.
@@ -715,7 +715,7 @@ class FSMOperator:
                 self.results['starts'][sno]['run2'] = True
                 #startversuch['run2'] = True
                 try:
-                    data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch, periodfactor=3, helplinefactor=0.8)
+                    data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch, debug=debug, periodfactor=3, helplinefactor=0.8)
                     if not data.empty:
                         # update timings accordingly
                         self.results['starts'][sno]['startstoptiming']['loadramp'][0]['end'] = xmax

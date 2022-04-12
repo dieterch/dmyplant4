@@ -22,6 +22,8 @@ from dmyplant2.dPlot import (
     bokeh_show,
     cvset,
     cplotdef,
+    equal_adjust,
+    count_columns
     )
 from dmyplant2.dFSM import (
     #FSM, 

@@ -40,7 +40,7 @@ def cvset(mp, dset):
 
 def cplotdef(mp, lfigures):
     for f in lfigures:
-        print(f, end=', ')
+        #print(f, end=', ')
         plotdef = list(lfigures.keys())
         vset = []
         for p in plotdef:
@@ -48,6 +48,43 @@ def cplotdef(mp, lfigures):
             vset += cvset(mp, dset)
         vset = list(set(vset))
     return plotdef, vset
+
+def equal_adjust(dset, data, do_not_adjust=[], debug=False):
+
+    def debug_dset(dset):
+        for row in dset:
+            print(f"{str(row['col']):40} {row['ylim'] if 'ylim' in row else 'no ylim'}")
+
+    num_axes = len(dset) - len(do_not_adjust)
+    dncm = [len(dset) + d for d in do_not_adjust if  d < 0]
+    dncp = [d for d in do_not_adjust if  d >= 0]
+    dnc = dncm + dncp
+    if debug:
+        print(f"nuber of data columns: {len(dset)}, number of axes:{num_axes}, Rows excluded from adjustement:{dnc}")
+    k = 0
+    for i, ax in enumerate(dset):
+        if not i in dnc:
+            for j, d in enumerate(ax['col']):
+                lmin = data[d].min() if j==0 else min(lmin, data[d].min())
+                lmax = data[d].max() if j==0 else max(lmax, data[d].max())
+                if debug:
+                    print(f"{i} {d:20} min={lmin:5.0f}, max={lmax:5.0f}")
+                smax = k*(lmax - lmin) + lmax
+                smin = lmin - (num_axes - (k + 1))*(lmax - lmin)
+                if (smax - smin) < 10:
+                    smin = smin - 5 - k; smax = smax + 5 - k
+                ax['ylim'] = (smin, smax)
+            k += 1
+    if debug:
+        print("\nCalculated Axes:")
+        debug_dset(dset)
+    return dset
+
+def count_columns(dset):
+    cnt = 0
+    for c in dset:
+        cnt += len(c['col'])
+    return cnt
 
 def _idx(n, s, e, x):
     return int(n * (x - s) / (e - s)+1)
