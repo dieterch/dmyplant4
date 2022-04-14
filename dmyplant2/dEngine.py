@@ -75,20 +75,31 @@ class Engine:
             start_start = valrec['starts@start']
             name = valrec['Validation Engine']
         else:
-            if pd.isnull(valstart): # take Commissioning date if no valstart date is given.
+            if pd.isnull(valstart): # try options to estimate a valstart date.
                 valstart = pd.to_datetime(edf['Commissioning Date'],infer_datetime_format=True)
                 if pd.isnull(valstart):
                     valstart = pd.to_datetime(edf['IB Unit Commissioning Date'],infer_datetime_format=True)
                     if pd.isnull(valstart):
-                        raise ValueError(f"SN {sn} => no valid commissioning data found.")
+                        print('no Commissioning Date available, guessing by Product program + 1 year.')
+                        valstart = pd.to_datetime(edf['Product Program'],infer_datetime_format=True) + timedelta(weeks=52)
+                        if pd.isnull(valstart):
+                            raise ValueError(f"SN {sn} => no valid commissioning date found / estimated.")
             valstart = pd.to_datetime(valstart,infer_datetime_format=True)
             ts = int(valstart.timestamp()*1e3)
             if not oph_start:
-                oph_help = mp.historical_dataItem(id, 161, ts)
-                oph_start = oph_help if oph_help else 0
+                try:
+                    oph_help = mp.historical_dataItem(id, 161, ts)
+                except:
+                    print('no valid data for engine ophs @ commissioning time found.')
+                    oph_help = 0
+                oph_start = oph_help
             if not start_start:
-                start_help = mp.historical_dataItem(id, 179, ts)
-                start_start = start_help if start_help else 0
+                try:
+                    start_help = mp.historical_dataItem(id, 179, ts)
+                except:
+                    print('no valid data for engine starts @ commissioning time found.')
+                    start_help = 0
+                start_start = start_help
             if not name:
                 name = edf['IB Site Name'] + ' ' + edf['Engine ID']            
 
