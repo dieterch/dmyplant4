@@ -90,14 +90,14 @@ class Engine:
                 try:
                     oph_help = mp.historical_dataItem(id, 161, ts)
                 except:
-                    print('no valid data for engine ophs @ commissioning time found.')
+                    print('no valid data for engine ophs @ commissioning time found. setting oph to 0')
                     oph_help = 0
                 oph_start = oph_help
             if not start_start:
                 try:
                     start_help = mp.historical_dataItem(id, 179, ts)
                 except:
-                    print('no valid data for engine starts @ commissioning time found.')
+                    print('no valid data for engine starts @ commissioning time found. setting starts to 0')
                     start_help = 0
                 start_start = start_help
             if not name:
