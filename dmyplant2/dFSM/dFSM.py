@@ -242,7 +242,7 @@ class startstopFSM(FSM):
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'}
                     ]),             
                 'idle': State('idle',[
-                    { 'trigger':'1232 Request module off', 'new-state':'runout'},
+                    { 'trigger':'1232 Request module off', 'new-state':'coolrun'},
                     { 'trigger':'2139 Request Synchronization', 'new-state':'synchronize'},
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'}
                     ]),
