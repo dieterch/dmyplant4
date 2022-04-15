@@ -247,6 +247,7 @@ class startstopFSM(FSM):
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'}
                     ]),
                 'synchronize': State('synchronize',[
+                    { 'trigger':'1232 Request module off', 'new-state':'coolrun'},
                     { 'trigger':'1235 Generator CB closed', 'new-state':'loadramp'},                
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'}
                     ]),             
@@ -291,6 +292,18 @@ class startstopFSM(FSM):
         durations = { ph:pd.Timedelta(sv['startstoptiming'][ph][-1]['end'] - sv['startstoptiming'][ph][-1]['start']).total_seconds() for ph in phases}
         durations['cumstarttime'] = sum([v for k,v in durations.items() if k in self.start_timing_states])
         results['starts'][sv['no']].update(durations)
+
+    def check_success(self, start):
+        # check if a start is successful:
+        if 'targetoperation' in start:
+            if (start['targetoperation'] > self._successtime) and (start['count_alarms'] == 0):
+                start['success'] = 'success'
+                return
+        if start['count_alarms'] > 0:
+            start['success'] = 'failed'
+        else:
+            start['success'] = 'undefined'
+        return
 
     def collect_data(self, nsvec, results):
         # do with every message
@@ -370,18 +383,19 @@ class startstopFSM(FSM):
 
                     self._harvest_timings(sv, phases, results)
 
-                    # ######################################################################################################
-                    # assess if a start is successful:
-                    # ... if it reaches 'targetoperation'
-                    if 'targetoperation' in results['starts'][-1]:
-                        # other criterias may apply.
-                        # ... and it stayed longer than 'successtime'
-                        results['starts'][-1]['success'] = (results['starts'][-1]['targetoperation'] > self._successtime)
-                    ########################################################################################################
-
                     # count alarms an warnings
                     results['starts'][-1]['count_alarms'] = len(results['starts'][-1]['alarms'])
                     results['starts'][-1]['count_warnings'] = len(results['starts'][-1]['warnings'])
+
+                    self.check_success(results['starts'][-1])
+                    # ######################################################################################################
+                    # assess if a start is successful:
+                    # ... if it reaches 'targetoperation'
+                    # if 'targetoperation' in results['starts'][-1]:
+                    #     # other criterias may apply.
+                    #     # ... and it stayed longer than 'successtime'
+                    #     results['starts'][-1]['success'] = (results['starts'][-1]['targetoperation'] > self._successtime)
+                    ########################################################################################################
 
                 # change to 'off' mode
                 nsvec['in_operation'] = 'off'
