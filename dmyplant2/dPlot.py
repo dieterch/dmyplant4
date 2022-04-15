@@ -49,7 +49,7 @@ def cplotdef(mp, lfigures):
         vset = list(set(vset))
     return plotdef, vset
 
-def equal_adjust(dset, data, do_not_adjust=[], debug=False, qmin=0.1, qmax=0.8):
+def equal_adjust(dset, data, do_not_adjust=[], debug=False, qmin=0.02, qmax=0.95):
 
     def debug_dset(dset):
         for row in dset:
