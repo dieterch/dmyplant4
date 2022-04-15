@@ -343,7 +343,7 @@ class startstopFSM(FSM):
 
             # do while 'on' in all states
             elif nsvec['in_operation'] == 'on': 
-                results['starts'][-1]['mode'] = nsvec['service_selector']
+                #results['starts'][-1]['mode'] = nsvec['service_selector']
                 rec = {'start':nsvec[self.name].laststate_start, 'end':nsvec[self.name].currentstate_start}
                 if not nsvec[self.name].laststate in results['starts'][-1]['startstoptiming']:
                     results['starts'][-1]['startstoptiming'][nsvec[self.name].laststate]=[rec]
@@ -369,12 +369,14 @@ class startstopFSM(FSM):
 
                     self._harvest_timings(sv, phases, results)
 
+                    # ######################################################################################################
                     # assess if a start is successful:
                     # ... if it reaches 'targetoperation'
                     if 'targetoperation' in results['starts'][-1]:
                         # other criterias may apply.
                         # ... and it stayed longer than 'successtime'
                         results['starts'][-1]['success'] = (results['starts'][-1]['targetoperation'] > self._successtime)
+                    ########################################################################################################
 
                     # count alarms an warnings
                     results['starts'][-1]['count_alarms'] = len(results['starts'][-1]['alarms'])
