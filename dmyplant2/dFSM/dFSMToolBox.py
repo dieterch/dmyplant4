@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from .dFSMData import load_data
 
+
 def loadramp_edge_detect(fsm, startversuch, debug=False, periodfactor=3, helplinefactor=0.8):
     # 1.4.2022 Aufgrund von Bautzen, der sehr langsam startet
     # periodfactor = 3, helplinefactor = 0.8
@@ -13,7 +14,8 @@ def loadramp_edge_detect(fsm, startversuch, debug=False, periodfactor=3, helplin
         s = startversuch['startstoptiming']['loadramp'][-1]['start'].timestamp()
         e = startversuch['startstoptiming']['loadramp'][-1]['end'].timestamp()
         e2 = s + periodfactor * (e-s)
-        data = load_data(fsm, cycletime=1, tts_from=s, tts_to=e2, silent=True, p_data=['Power_PowerAct'], p_forceReload=False, p_suffix='loadramp', debug=debug)
+        pdef = ['Power_PowerAct','Hyd_PressOil','Hyd_PressOilDif','Hyd_TempOil','TecJet_Lambda1','TecJet_GasDiffPress','Exhaust_TempCylMin','Exhaust_TempCylMax']
+        data = load_data(fsm, cycletime=1, tts_from=s, tts_to=e2, silent=True, p_data=pdef, p_forceReload=False, p_suffix='loadramp', debug=debug)
         if not data.empty:
             data = data[(data['time'] >= int(s * 1000)) & (data['time'] <= int(e2 * 1000))]
             #s,e,e2, data.iloc[0]['time'], data.iloc[-1]['time'],

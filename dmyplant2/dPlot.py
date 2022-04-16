@@ -67,12 +67,14 @@ def equal_adjust(dset, data, do_not_adjust=[], debug=False, qmin=0.02, qmax=0.95
             for j, d in enumerate(ax['col']):
                 lmin = data[d].quantile(q=qmin) if j==0 else min(lmin, data[d].quantile(q=qmin))
                 lmax = data[d].quantile(q=qmax) if j==0 else max(lmax, data[d].quantile(q=qmax))
+                lmin = 0.9 * lmin if lmin > 0.0 else 1.1 * lmin
+                lmax = 0.9 * lmax if lmax < 0.0 else 1.1 * lmax 
                 if debug:
-                    print(f"{i} {d:20} min={lmin:5.0f}, max={lmax:5.0f}")
+                    print(f"{i} {d:20} min={lmin:8.2f}, max={lmax:8.2f}")
                 smax = k*(lmax - lmin) + lmax
                 smin = lmin - (num_axes - (k + 1))*(lmax - lmin)
-                if (smax - smin) < 10:
-                    smin = smin - 5 - k; smax = smax + 5 - k
+                if (smax - smin) < 1.0:
+                    smin = smin - 5.0 - k; smax = smax + 5.0 - k
                 ax['ylim'] = (smin, smax)
             k += 1
     if debug:
