@@ -26,7 +26,7 @@ from bokeh.plotting import figure, output_file, show as bokeh_show
 from bokeh.models import LinearAxis, Range1d, DataRange1d, HoverTool
 from bokeh.core.validation import check_integrity
 from bokeh.layouts import column, row, gridplot, layout
-from bokeh.models import ColumnDataSource, Div, Span
+from bokeh.models import ColumnDataSource, Div, Span, CustomJS
 
 # Load Application imports
 from dmyplant2.dReliability import demonstrated_reliability_sr
@@ -369,9 +369,15 @@ def bokeh_chart(source, pltcfg, x_ax='datetime', x_ax_unit=None, title=None, gri
         p.add_layout(LinearAxis(y_range_name=str(i),
                             axis_label=llabel, axis_label_text_color=color), 'left')
 
-    p.add_tools(HoverTool(tooltips=tooltips, 
-                        formatters={f'@datetime': 'datetime'}, # use 'datetime' formatter for '@date' field    
-                        mode='mouse'))  # mode=vline -> display a tooltip whenever the cursor is vertically in line with a glyph
+    callback = CustomJS(code='document.getElementsByClassName("bk-tooltip")[0].style.backgroundColor=“transparent";')
+    #callback = CustomJS(code='document.getElementsByClassName("bk-tooltip")[0].style.backgroundColor=“rgba(255,255,255,0.2)";')
+
+    p.add_tools(HoverTool(
+        tooltips=tooltips, 
+        formatters={f'@datetime': 'datetime'}, # use 'datetime' formatter for '@date' field    
+        mode='mouse',
+        callback=callback))  # mode=vline -> display a tooltip whenever the cursor is vertically in line with a glyph
+
     p.toolbar.active_drag = p.select_one('BoxZoomTool')
     p.toolbar.active_scroll = p.select_one('WheelZoomTool')
 

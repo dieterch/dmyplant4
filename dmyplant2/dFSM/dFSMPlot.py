@@ -77,16 +77,17 @@ def FSM_add_Notations(fig,fsm,startversuch):
 
     # visualize calcualted loadramp
     if 'loadramp' in startversuch['startstoptiming']:
-        x0 = startversuch['startstoptiming']['loadramp'][-1]['start']; y0 = 0.0
+        pow_nom = fsm._e['Power_PowerNominal']
+        x0 = startversuch['startstoptiming']['loadramp'][-1]['start']; y0 = 0.0 # 0.1 * pow_nom # Sprung am Anfang?
         default_ramp_rate = fsm._e['rP_Ramp_Set'] if fsm._e['rP_Ramp_Set'] != None else 0.625
-        default_ramp_duration = 100.0 / default_ramp_rate
-        x1 = x0 + pd.Timedelta(default_ramp_duration, unit='sec'); y1 = fsm._e['Power_PowerNominal']
+        default_ramp_duration = 100.0 / default_ramp_rate # 0.9 * 100.0 / default_ramp_rate # Sprung am Anfang?
+        x1 = x0 + pd.Timedelta(default_ramp_duration, unit='sec'); y1 = pow_nom
         ramp = fig.line(x=[x0,x1],y=[y0,y1], y_range_name='0', line_color='green', line_dash='solid', line_alpha=0.4, line_width=1)                            
     return fig
 
 def FSM_add_Alarms2(fig,fsm,startversuch):
     al_lines = disp_alarms(startversuch)
-    add_dbokeh_vlines(al_lines,fig,line_color='red', line_dash='dashed', line_alpha=0.4, line_width=2)
+    #add_dbokeh_vlines(al_lines,fig,line_color='red', line_dash='dashed', line_alpha=0.4, line_width=2)
     return fig
 
 def FSM_add_Alarms(fig,fsm,startversuch): 
@@ -97,7 +98,7 @@ def FSM_add_Alarms(fig,fsm,startversuch):
 
 def FSM_add_Warnings2(fig,fsm,startversuch):
     w_lines = disp_warnings(startversuch)
-    add_dbokeh_vlines(w_lines,fig,line_color='#d5ac13', line_dash='dashed', line_alpha=0.4, line_width=2)
+    #add_dbokeh_vlines(w_lines,fig,line_color='#d5ac13', line_dash='dashed', line_alpha=0.4, line_width=2)
     return fig
 
 def FSM_add_Warnings(fig,fsm,startversuch): 
