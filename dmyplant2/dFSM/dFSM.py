@@ -461,7 +461,7 @@ class FSMOperator:
 
     def init_results(self):
         self.results = {
-            'engine' : self._e,
+            'sn' : str(self._e._sn),
             'first_message': self.first_message,
             'last_message': self.last_message,
             'starts': [],
