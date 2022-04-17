@@ -461,6 +461,9 @@ class FSMOperator:
 
     def init_results(self):
         self.results = {
+            'engine' : self._e,
+            'first_message': self.first_message,
+            'last_message': self.last_message,
             'starts': [],
             'starts_counter':0,
             'stops': [
@@ -512,10 +515,13 @@ class FSMOperator:
         #self.results['runlogdetail'] = runlogdetail
 
     def unstore(self):
-        if os.path.exists(self.pfn):
+        if self.exists():
             os.remove(self.pfn)
         # if os.path.exists(self.hdfn):
         #     os.remove(self.hdfn)
+        
+    def exists(self):
+        return os.path.exists(self.pfn) 
 
     ## message handling
     def load_messages(self,e, p_from=None, p_to=None, skip_days=None, untilnow=False):
