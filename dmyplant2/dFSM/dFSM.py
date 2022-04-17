@@ -515,11 +515,11 @@ class FSMOperator:
         #self.results['runlogdetail'] = runlogdetail
 
     def unstore(self):
-        if self.exists():
+        if self.exists:
             os.remove(self.pfn)
         # if os.path.exists(self.hdfn):
         #     os.remove(self.hdfn)
-        
+    @property        
     def exists(self):
         return os.path.exists(self.pfn) 
 
