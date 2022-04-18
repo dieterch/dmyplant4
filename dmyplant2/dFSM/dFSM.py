@@ -219,14 +219,14 @@ class startstopFSM(FSM):
     # useful abbrevations
     run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','targetoperation','rampdown','coolrun','runout','count_alarms', 'count_warnings']
     vertical_lines_times = ['startpreparation','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
-
+    start_timing_states =  ['startpreparation','starter','speedup','idle','synchronize','loadramp']
+    
     def __init__(self, operator, e):
         self.name = 'startstop'
         self._operator = operator
         self._e = e
         self._successtime = 300
         self._initial_state = 'standstill'
-        self.start_timing_states =  ['startpreparation','starter','speedup','idle','synchronize','loadramp']
         self._states = {
                 'standstill': State('standstill',[
                     { 'trigger':'1231 Request module on', 'new-state': 'startpreparation'},            
@@ -299,13 +299,15 @@ class startstopFSM(FSM):
 
     def check_success(self, start):
         # check if a start is successful:
+        count_alarms_in_startphase = len([a for a in start['alarms'] if a['state'] in self.start_timing_states])
         if 'targetoperation' in start:
-            if (start['targetoperation'] > self._successtime) and (start['count_alarms'] == 0):
+            if (start['targetoperation'] > self._successtime) and (count_alarms_in_startphase == 0):
                 start['success'] = 'success'
                 return
-        if start['count_alarms'] > 0:
+        # check an alarm occured 
+        if count_alarms_in_startphase > 0:
             start['success'] = 'failed'
-        else:
+        else: # no alarm, but too short engine operation => assume to be intentionally stopped early.
             start['success'] = 'undefined'
         return
 
