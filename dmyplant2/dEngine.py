@@ -1445,11 +1445,12 @@ class Engine:
         """
         return epoch_ts(arrow.get(self['val start']).timestamp())
 
-
-    def myplant_workbench_link(self, ts, interval, dset):
+    def myplant_workbench_link(self, t_from, t_to, dset):
+        t_from = int(pd.to_datetime(t_from).timestamp() * 1e6) 
+        t_to = int(pd.to_datetime(t_to).timestamp() * 1e6) 
         link_url = 'https://myplant.io'
         items = ','.join([str(v[0]) for v in dset.values()])
-        return fr'<a href="{link_url}/#/fleet/workbench?q={ts - interval * 1000}-{ts + interval * 1000}|{id}-{items}">link to Myplant Workbench</a>' 
+        return fr'<a href="{link_url}/#/fleet/workbench?q={t_from}-{t_to}|{id}-{items}">link to Myplant Workbench</a>' 
 
     ############################
     #Calculated & exposed values
