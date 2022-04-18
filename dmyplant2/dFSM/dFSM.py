@@ -460,6 +460,7 @@ class FSMOperator:
     def init_results(self):
         self.results = {
             'sn' : str(self._e._sn),
+            'save_date': None,
             'first_message': self.first_message,
             'last_message': self.last_message,
             'starts': [],
@@ -498,25 +499,17 @@ class FSMOperator:
         if os.path.exists(self.pfn):
             with open(self.pfn, 'rb') as handle:
                 self.results = pickle.load(handle)
-        # if os.path.exists(self.hdfn):
-        #     dlogdetail = pd.read_hdf(self.hdfn,"runlogdetail")
-        #     self.results['runlogdetail'] = list(dlogdetail[0])
 
     def store(self):
         self.unstore()
-        # runlogdetail = self.results['runlogdetail']
-        # del self.results['runlogdetail']
-        # dlogdetail = pd.DataFrame(runlogdetail)
-        # dlogdetail.to_hdf(self.hdfn, 'runlogdetail', complevel=6)
+        self.results['save_date'] = pd.to_datetime('today').normalize()
         with open(self.pfn, 'wb') as handle:
             pickle.dump(self.results, handle, protocol=5)
-        #self.results['runlogdetail'] = runlogdetail
 
     def unstore(self):
         if self.exists:
             os.remove(self.pfn)
-        # if os.path.exists(self.hdfn):
-        #     os.remove(self.hdfn)
+
     @property        
     def exists(self):
         return os.path.exists(self.pfn) 
