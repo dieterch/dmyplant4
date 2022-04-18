@@ -216,6 +216,10 @@ class ServiceSelectorFSM(FSM):
 ## Start Stop FSM
 ###########################################################################################
 class startstopFSM(FSM):
+    # useful abbrevations
+    run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','targetoperation','rampdown','coolrun','runout','count_alarms', 'count_warnings']
+    vertical_lines_times = ['startpreparation','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
+
     def __init__(self, operator, e):
         self.name = 'startstop'
         self._operator = operator
@@ -422,12 +426,6 @@ class startstopFSM(FSM):
                 'mode': nsvec['service_selector'],
             }
             results['runlog'].append(_logline)
-
-####################################
-#TODO: move filetrfsm into the statedefinitions
-class filterFSM:
-    run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','targetoperation','rampdown','coolrun','runout','count_alarms', 'count_warnings']
-    vertical_lines_times = ['startpreparation','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
 
 class FSMOperator:
     def __init__(self, e, p_from = None, p_to=None, skip_days=None, frompickle='NOTIMPLEMENTED'):
