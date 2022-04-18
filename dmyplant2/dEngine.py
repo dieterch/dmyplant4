@@ -1445,9 +1445,9 @@ class Engine:
         """
         return epoch_ts(arrow.get(self['val start']).timestamp())
 
-    def myplant_workbench_link(self, t_from, t_to, dset, linkname='link to Myplant Workbench'):
-        t_from = int(pd.to_datetime(t_from).timestamp() * 1e6) 
-        t_to = int(pd.to_datetime(t_to).timestamp() * 1e6) 
+    def myplant_workbench_link(self, t_from, t_to, dset, linkname='link to Myplant Workbench', pre=5*60, post=21*60):
+        t_from = int((pd.to_datetime(t_from).timestamp() - pre) * 1e3) 
+        t_to = int((pd.to_datetime(t_to).timestamp() + post) * 1e3) 
         link_url = 'https://myplant.io'
         items = ','.join([str(v[0]) for v in dset.values()])
         return fr'<a href="{link_url}/#/fleet/workbench?q={t_from}-{t_to}|{self.id}-{items}">{linkname}</a>' 
