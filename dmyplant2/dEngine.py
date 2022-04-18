@@ -1450,7 +1450,7 @@ class Engine:
         t_to = int((pd.to_datetime(t_to).timestamp() + post) * 1e3) 
         link_url = 'https://myplant.io'
         items = ','.join([str(v[0]) for v in dset.values()])
-        return fr'<a href="{link_url}/#/fleet/workbench?q={t_from}-{t_to}|{self.id}-{items}">{linkname}</a>' 
+        return fr'<a href="{link_url}/#/fleet/workbench?q={t_from}-{t_to}|{self.id}-{items}" target="_blank">{linkname}</a>' 
 
     ############################
     #Calculated & exposed values
