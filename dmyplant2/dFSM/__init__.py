@@ -33,6 +33,6 @@ from .dFSMPlot import (
 from .dFSM import (
     #FSM, 
     FSMOperator, 
-    filterFSM
+    startstopFSM
 )
 from .dFSMFigures import figures

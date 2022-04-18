@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from collections import namedtuple
 from IPython.display import HTML, display
-from .dFSM import filterFSM
+from .dFSM import startstopFSM
 
 ## Resultate aus einem FSM Lauf ermitteln.
 def disp_result(startversuch):

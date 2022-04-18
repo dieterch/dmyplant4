@@ -8,7 +8,7 @@ from bokeh.plotting import figure, output_file, show
 
 from IPython.display import HTML, display
 from dmyplant2 import dbokeh_chart, bokeh_chart, bokeh_show #, add_dbokeh_vlines, add_dbokeh_hlines 
-from .dFSM import filterFSM
+from .dFSM import startstopFSM
 from .dFSMResults import disp_alarms, disp_warnings #, detect_edge_right, detect_edge_left, loadramp_edge_detect
 import warnings
 warnings.simplefilter(action='ignore', category=UserWarning)
