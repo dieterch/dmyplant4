@@ -49,7 +49,7 @@ def FSM_add_Notations(fig,fsm,startversuch):
             'time':startversuch['startstoptiming'][k][-1]['start'],
             'duration':startversuch[k]
         } 
-        for k in filterFSM.vertical_lines_times 
+        for k in startstopFSM.vertical_lines_times 
         if k in startversuch['startstoptiming'] and (startversuch['startstoptiming'][k][-1]['start'] == startversuch['startstoptiming'][k][-1]['start'])}
     lines['End'] = {
         'time':startversuch['endtime'],
@@ -142,6 +142,6 @@ def states_lines(startversuch):
     Returns:
         list: list of pd.Timestamps, ready to be passed into add_bokeh_vlinees
     """
-    sv_lines = [v for v in startversuch[filterFSM.vertical_lines_times] if v==v]
+    sv_lines = [v for v in startversuch[startstopFSM.vertical_lines_times] if v==v]
     start = startversuch['starttime']; lines=list(np.cumsum(sv_lines)); 
     return [start + pd.Timedelta(value=v,unit='sec') for v in [0] + lines]
