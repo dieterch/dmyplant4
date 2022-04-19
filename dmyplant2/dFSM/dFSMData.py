@@ -60,10 +60,11 @@ def _resample_data(fsm, data, startversuch):
     return pd.concat([odata1,odata2,odata3]).reset_index(drop='index')
 
 def get_cycle_data(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, reduce=True, pre_period=5*60, post_period=21*60, t_range=(0,100)):
-    tns = pd.to_datetime((startversuch['starttime'].timestamp() + t_range[0]/100.0 * (startversuch['endtime']-startversuch['starttime']).seconds), unit='s')
-    tne = pd.to_datetime((startversuch['starttime'].timestamp() + t_range[1]/100.0 * (startversuch['endtime']-startversuch['starttime']).seconds), unit='s')
-    t0 = int(tns.timestamp() * 1000 - pre_period * 1000)
-    t1 = int(tne.timestamp() * 1000 + post_period * 1000)
+    ts = startversuch['starttime'].timestamp() - pre_period
+    te = startversuch['starttime'].timestamp() + post_period
+    t0 = pd.to_datetime((ts + t_range[0]/100.0 * (te-ts)), unit='s')
+    t1 = pd.to_datetime((te + t_range[1]/100.0 * (te-ts)), unit='s')
+    t0 = t0 * 1e3; t1 = t1 * 1e3 # Umrechnung 
     if max_length:
         if (t1 - t0) > max_length * 1e3:
             t1 = int(t0 + max_length * 1e3)
@@ -111,10 +112,11 @@ def _load_reduced_data(fsm, startversuch, ptts_from, ptts_to, pdata=None):
     return pd.concat([data1,data2,data3]).reset_index(drop='index')
 
 def get_cycle_data2(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, pre_period=5*60, post_period=21*60, t_range=(0,100)):
-    tns = pd.to_datetime((startversuch['starttime'].timestamp() + t_range[0]/100.0 * (startversuch['endtime']-startversuch['starttime']).seconds), unit='s')
-    tne = pd.to_datetime((startversuch['starttime'].timestamp() + t_range[1]/100.0 * (startversuch['endtime']-startversuch['starttime']).seconds), unit='s')
-    t0 = int(tns.timestamp() * 1000 - pre_period * 1000)
-    t1 = int(tne.timestamp() * 1000 + post_period * 1000)
+    ts = startversuch['starttime'].timestamp() - pre_period
+    te = startversuch['starttime'].timestamp() + post_period
+    t0 = pd.to_datetime((ts + t_range[0]/100.0 * (te-ts)), unit='s')
+    t1 = pd.to_datetime((te + t_range[1]/100.0 * (te-ts)), unit='s')
+    t0 = t0 * 1e3; t1 = t1 * 1e3 # Umrechnung 
     if max_length:
         if (t1 - t0) > max_length * 1e3:
             t1 = int(t0 + max_length * 1e3)
