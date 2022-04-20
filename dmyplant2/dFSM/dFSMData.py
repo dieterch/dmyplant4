@@ -3,31 +3,37 @@ import numpy as np
 import arrow
 
 
-
 ## data handling
 def _load_data(fsm, engine=None, p_data=None, ts_from=None, ts_to=None, p_timeCycle=None, p_forceReload=False, p_slot=99, silent=False, p_suffix='', debug = False):
-    engine = engine or fsm._e
-    if not p_timeCycle:
-        p_timeCycle = 30
-    ts_from = ts_from or fsm.first_message 
-    ts_to = ts_to or fsm.last_message 
-    #return engine.hist_data(
-    # changed to hist_data2 8.3.2022 - Dieter
-    return engine.hist_data2(
-        itemIds = engine.get_dataItems(p_data or ['Various_Values_SpeedAct','Power_PowerAct']),
-        p_from = arrow.get(ts_from).to('Europe/Vienna'),
-        p_to = arrow.get(ts_to).to('Europe/Vienna'),
-        timeCycle=p_timeCycle,
-        forceReload=p_forceReload,
-        slot=p_slot,
-        silent=silent,
-        suffix=p_suffix,
-        debug = debug
-    )
+    if ((ts_from is None) or (ts_to is None)):
+        return pd.DataFrame([])
+    else:
+        engine = engine or fsm._e
+        if not p_timeCycle:
+            p_timeCycle = 30
+        ts_from = ts_from or fsm.first_message 
+        ts_to = ts_to or fsm.last_message 
+        #return engine.hist_data(
+        # changed to hist_data2 8.3.2022 - Dieter
+        return engine.hist_data2(
+            itemIds = engine.get_dataItems(p_data or ['Various_Values_SpeedAct','Power_PowerAct']),
+            p_from = arrow.get(ts_from).to('Europe/Vienna'),
+            p_to = arrow.get(ts_to).to('Europe/Vienna'),
+            timeCycle=p_timeCycle,
+            forceReload=p_forceReload,
+            slot=p_slot,
+            silent=silent,
+            suffix=p_suffix,
+            debug = debug
+        )
 
 def load_data(fsm, cycletime, tts_from=None, tts_to=None, silent=False, p_data=None, p_forceReload=False, p_suffix = '', debug=False):
-    data = _load_data(fsm, p_data=p_data, p_timeCycle=cycletime, ts_from=tts_from, ts_to=tts_to, p_slot=tts_from or 9999, silent=silent, p_forceReload=p_forceReload, p_suffix=p_suffix, debug=debug)
-    return data
+    if ((tts_from is None) or (tts_to is None)):
+        return pd.DataFrame([])
+    else:
+        return _load_data(
+            fsm, p_data=p_data, p_timeCycle=cycletime, ts_from=tts_from, ts_to=tts_to, 
+            p_slot=tts_from or 9999, silent=silent, p_forceReload=p_forceReload, p_suffix=p_suffix, debug=debug)
 
 def get_period_data(fsm, ts0, ts1, cycletime=None, p_data=None):
     lts_from = int(ts0)

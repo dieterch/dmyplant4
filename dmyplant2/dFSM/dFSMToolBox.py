@@ -2,6 +2,81 @@ import pandas as pd
 import numpy as np
 from .dFSMData import load_data
 
+class Start_Data_Collector:
+    def __init__(self):
+        self._vset = []
+        self.start = None
+        self.end = None
+        self._data = pd.DataFrame([])
+
+    @property
+    def data(self):
+        return self._data
+
+    def left_upper_edge(self, v, data, factor, xmax, ymax):
+        self._data = data[((data['time'] >= int( self.start * 1000)) & (data['time'] <= int(self.end * 1000)))]
+        x0 = self._data.iloc[0]['datetime']
+        y0 = 0
+        x1 = self._data.iloc[-1]['datetime']
+        y1 = max(self._data[v]) * factor
+        self._data['helpline'] = self._data[v]  + (x0 - self._data['datetime'])* (y1-y0)/(x1-x0) + y0
+        point = self._data['helpline'].idxmax()
+        if point == point: # test for not NaN
+            edge = self._data.loc[point]
+            xmax = edge['datetime']
+            ymax = self._data.at[edge.name,v]
+        return xmax, ymax
+
+    def collect(self, startversuch, result, data):
+        pass
+
+    def register(self, startversuch, vset, tfrom, tto):
+        return vset, tfrom, tto
+
+class Target_load_Collector(Start_Data_Collector):
+    def __init__(self, ratedload, period_factor=3, helplinefactor=0.8):
+        super().__init__()
+        self._vset += ['Power_PowerAct']
+        self.ratedload = ratedload
+        self.period_factor=period_factor
+        self.helplinefactor=helplinefactor
+
+    def collect(self, startversuch ,results, data):
+        xmax = startversuch['endtime'] # set xmax to the latest possible time to avoid duration to be 0.
+        ymax = 0.0
+        if 'loadramp' in startversuch['startstoptiming']:
+            if not data.empty:
+                xmax, ymax = self.left_upper_edge('Power_PowerAct', data, self.helplinefactor, xmax, ymax)
+            duration = xmax.timestamp() - self.start
+            ramprate = ymax / duration
+            if  duration < 5: # constant load ?
+                xmax = startversuch['endtime']
+                ymax = 0.0
+
+            sno = startversuch['no']
+            results['starts'][sno]['startstoptiming']['loadramp'][0]['end'] = xmax
+            if 'targetoperation' in results['starts'][sno]['startstoptiming']:
+                results['starts'][sno]['startstoptiming']['targetoperation'][0]['start'] = xmax
+            results['starts'][sno]['targetload'] = ymax
+            results['starts'][sno]['ramprate'] = ramprate / self.ratedload * 100.0
+            return results
+
+    def register(self,startversuch,vset=[],tfrom=None,tto=None):
+        vset += self._vset
+        vset = list(set(vset)) # unique list ...
+        if 'loadramp' in startversuch['startstoptiming']:
+            self.start = startversuch['startstoptiming']['loadramp'][-1]['start'].timestamp()
+            if tfrom is None:
+                tfrom = self.start
+            else: 
+                tfrom = self.start if self.start < tfrom else tfrom
+            self.end = startversuch['startstoptiming']['loadramp'][-1]['end'].timestamp()
+            self.end = self.start + self.period_factor * (self.end-self.start)
+            if tto is None:
+                tto = self.end
+            else:
+                tto = self.end if self.end > tto else tto
+        return vset, tfrom, tto
 
 def loadramp_edge_detect(fsm, startversuch, debug=False, periodfactor=3, helplinefactor=0.8):
     # 1.4.2022 Aufgrund von Bautzen, der sehr langsam startet
