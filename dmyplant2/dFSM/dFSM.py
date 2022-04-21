@@ -723,9 +723,9 @@ class FSMOperator:
         silent (Boolean): whether a progress bar is visible or not. 
         """
         ratedload = self._e['Power_PowerNominal']
-        target_load_collector = Target_load_Collector(ratedload, period_factor=3, helplinefactor=0.8)
-        exhaust_temp_collector = Exhaust_temp_Collector()
-        tecjet_collector = Tecjet_Collector()
+        target_load_collector = Target_load_Collector(['loadramp'],ratedload, period_factor=3, helplinefactor=0.8)
+        exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'])
+        tecjet_collector = Tecjet_Collector(['loadramp'])
 
         if not silent:
             pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=2, unit=' starts', desc="FSM2", file=sys.stdout)
@@ -735,31 +735,24 @@ class FSMOperator:
             if not self.results['starts'][sno]['run2']:
                 self.results['starts'][sno]['run2'] = True
                 #try:
-
+                # collect dataItems & phases, align an load data in one request to myplant per Start. 
                 vset, tfrom, tto = target_load_collector.register(startversuch)
                 vset, tfrom, tto = exhaust_temp_collector.register(startversuch, vset, tfrom, tto)
                 vset, tfrom, tto = tecjet_collector.register(startversuch, vset, tfrom, tto)
-                # ... register all collectors , load the collected data
+
                 data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='loadramp', debug=False)
+                # TODO: move the data.empty into the collectors to allow individual reaction and 
+                # TODO: streamline results, even when there is no data available.
                 if not data.empty:
+                    # collect data
+                    # TODO: implement an algorithm to automatically execute registered run2 data collectors
+                    # TODO: Vision is a simple plugin Inetrface to allow Engineers with limited Python, but
+                    # TODO: deep domain knowledge to plug in their code and collect Field data 
                     self.results = target_load_collector.collect(startversuch, self.results, data)
                     self.results = exhaust_temp_collector.collect(startversuch, self.results, data)
                     self.results = tecjet_collector.collect(startversuch, self.results, data)
                     phases = list(self.results['starts'][sno]['startstoptiming'].keys())
                     self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
-
-                    # 2022-04-20, old code, will keep it until new code finally validated. Dieter
-                    # data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch, debug=debug, periodfactor=3, helplinefactor=0.8)
-                    # if not data.empty:
-                    #     # update timings accordingly
-                    #     self.results['starts'][sno]['startstoptiming']['loadramp'][0]['end'] = xmax
-                    #     if 'targetoperation' in self.results['starts'][sno]['startstoptiming']:
-                    #         self.results['starts'][sno]['startstoptiming']['targetoperation'][0]['start'] = xmax
-                    #     self.results['starts'][sno]['targetload'] = ymax
-                    #     self.results['starts'][sno]['ramprate'] = ramprate / ratedload * 100.0
-                    #     phases = list(self.results['starts'][sno]['startstoptiming'].keys())
-                    #     self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
-                    #print(f"Start: {startversuch['no']:3d} xmax: {xmax}, ymax: {ymax:6.0f}, duration: {duration:5.1f}, ramprate: {ramprate / ratedload * 100.0:4.2f} %/s")
 
                 #except Exception as err:
                 #    print('During Run2 , an Error occured:', err)
