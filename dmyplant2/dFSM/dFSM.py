@@ -11,7 +11,7 @@ import dmyplant2
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from .dFSMToolBox import Target_load_Collector, Exhaust_temp_Collector, Tecjet_Collector, load_data
+from .dFSMToolBox import Target_load_Collector, Exhaust_temp_Collector, Tecjet_Collector, Sync_Current_Collector ,load_data
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -726,6 +726,7 @@ class FSMOperator:
         target_load_collector = Target_load_Collector(['loadramp'],ratedload, period_factor=3, helplinefactor=0.8)
         exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'])
         tecjet_collector = Tecjet_Collector(['loadramp'])
+        sync_current_collector = Sync_Current_Collector(['idle','synchronize'], self._e.Speed_nominal)
 
         if not silent:
             pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=2, unit=' starts', desc="FSM2", file=sys.stdout)
@@ -739,6 +740,7 @@ class FSMOperator:
                 vset, tfrom, tto = target_load_collector.register(startversuch)
                 vset, tfrom, tto = exhaust_temp_collector.register(startversuch, vset, tfrom, tto)
                 vset, tfrom, tto = tecjet_collector.register(startversuch, vset, tfrom, tto)
+                vset, tfrom, tto = sync_current_collector.register(startversuch, vset, tfrom, tto)
 
                 data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='loadramp', debug=False)
                 # TODO: move the data.empty into the collectors to allow individual reaction and 
@@ -751,6 +753,7 @@ class FSMOperator:
                     self.results = target_load_collector.collect(startversuch, self.results, data)
                     self.results = exhaust_temp_collector.collect(startversuch, self.results, data)
                     self.results = tecjet_collector.collect(startversuch, self.results, data)
+                    self.results = sync_current_collector.collect(startversuch, self.results, data)
                     phases = list(self.results['starts'][sno]['startstoptiming'].keys())
                     self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
 

@@ -6,7 +6,6 @@ from .dFSMData import (
     get_period_data,
 )
 from .dFSMToolBox import (
-    Target_load_Collector,
     loadramp_edge_detect,
     xwhere,
     xwhere2
