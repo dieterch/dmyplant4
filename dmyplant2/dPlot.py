@@ -49,7 +49,7 @@ def cplotdef(mp, lfigures):
         vset = list(set(vset))
     return plotdef, vset
 
-def equal_adjust(dset, data, do_not_adjust=[], debug=False, qmin=0.02, qmax=0.95):
+def equal_adjust(dset, data, do_not_adjust=[], debug=False, qmin=0.02, qmax=0.95, minfactor=0.9, maxfactor=1.1):
 
     def debug_dset(dset):
         for row in dset:
@@ -67,8 +67,8 @@ def equal_adjust(dset, data, do_not_adjust=[], debug=False, qmin=0.02, qmax=0.95
             for j, d in enumerate(ax['col']):
                 lmin = data[d].quantile(q=qmin) if j==0 else min(lmin, data[d].quantile(q=qmin))
                 lmax = data[d].quantile(q=qmax) if j==0 else max(lmax, data[d].quantile(q=qmax))
-                lmin = 0.9 * lmin if lmin > 0.0 else 1.1 * lmin
-                lmax = 0.9 * lmax if lmax < 0.0 else 1.1 * lmax 
+                lmin = minfactor * lmin if lmin > 0.0 else maxfactor * lmin
+                lmax = minfactor * lmax if lmax < 0.0 else maxfactor * lmax 
                 if debug:
                     print(f"{i} {d:20} min={lmin:8.2f}, max={lmax:8.2f}")
                 smax = k*(lmax - lmin) + lmax

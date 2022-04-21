@@ -13,6 +13,31 @@ class Start_Data_Collector:
     def data(self):
         return self._data
 
+    def phase_timing(self, startversuch, phases):
+        ok = all([k in startversuch['startstoptiming'] for k in phases])
+        if ok:
+            self.start = startversuch['startstoptiming'][phases[0]][0]['start'].timestamp()
+            self.end = startversuch['startstoptiming'][phases[-1]][0]['end'].timestamp()
+        return ok
+
+    def cut_data(self, startversuch, data, phases):
+        if self.phase_timing(startversuch, phases):
+            return data[(data.time > int(self.start * 1000)) & (data.time < int(self.end * 1000))].reset_index(drop=True)
+        else:
+            return pd.DataFrame([])
+
+    def check_from(self, tfrom):
+        if tfrom is None:
+            return self.start
+        else: 
+            return self.start if self.start < tfrom else tfrom
+
+    def check_to(self, tto):
+        if tto is None:
+            return self.end
+        else:
+            return self.end if self.end > tto else tto
+
     def left_upper_edge(self, v, data, factor, xmax, ymax):
         self._data = data[((data['time'] >= int( self.start * 1000)) & (data['time'] <= int(self.end * 1000)))]
         x0 = self._data.iloc[0]['datetime']
@@ -64,19 +89,77 @@ class Target_load_Collector(Start_Data_Collector):
     def register(self,startversuch,vset=[],tfrom=None,tto=None):
         vset += self._vset
         vset = list(set(vset)) # unique list ...
-        if 'loadramp' in startversuch['startstoptiming']:
-            self.start = startversuch['startstoptiming']['loadramp'][-1]['start'].timestamp()
-            if tfrom is None:
-                tfrom = self.start
-            else: 
-                tfrom = self.start if self.start < tfrom else tfrom
-            self.end = startversuch['startstoptiming']['loadramp'][-1]['end'].timestamp()
+        if self.phase_timing(startversuch,['loadramp']):
+            tfrom = self.check_from(tfrom)
             self.end = self.start + self.period_factor * (self.end-self.start)
-            if tto is None:
-                tto = self.end
-            else:
-                tto = self.end if self.end > tto else tto
+            tto = self.check_to(tto)
         return vset, tfrom, tto
+
+class Exhaust_temp_Collector(Start_Data_Collector):
+    def __init__(self):
+        super().__init__()
+        self._vset += ['Power_PowerAct','Exhaust_TempCylMin','Exhaust_TempCylMax']
+
+    def collect(self, startversuch, results, data):
+        tdata = self.cut_data(startversuch, data, ['loadramp'])
+        sno = startversuch['no']
+        res = {'tmax':np.nan, 'spread_at_tmax':np.nan, 'power_at_tmax': np.nan }
+        if not tdata.empty:
+            point = tdata['Exhaust_TempCylMax'].idxmax()
+            if point == point: # test for not NaN
+                datapoint = tdata.loc[point]
+                tmax = tdata.at[datapoint.name,'Exhaust_TempCylMax']
+                tmin = tdata.at[datapoint.name,'Exhaust_TempCylMin']
+                tspread = tmax - tmin
+                tpow  = tdata.at[datapoint.name,'Power_PowerAct']
+                res = {
+                        'tmax':tmax,
+                        'spread_at_tmax': tspread,  
+                        'power_at_tmax': tpow
+                    }
+        results['starts'][sno].update(res) 
+        return results 
+
+    def register(self,startversuch,vset=[],tfrom=None,tto=None):
+        vset += self._vset
+        vset = list(set(vset)) # unique list ...
+        if self.phase_timing(startversuch,['loadramp']):
+            tfrom = self.check_from(tfrom)
+            tto = self.check_to(tto)
+        return vset, tfrom, tto
+
+class Tecjet_Collector(Start_Data_Collector):
+    def __init__(self):
+        super().__init__()
+        self._vset += ['TecJet_Lambda1','TecJet_GasTemp1','TecJet_GasPress1','TecJet_GasDiffPress']
+
+    def collect(self, startversuch, results, data):
+        tjdata = self.cut_data(startversuch, data, ['loadramp'])
+        sno = startversuch['no']
+        res = {'dpmin':np.nan, 'p_at_dpmin':np.nan, 't_at_dpmin': np.nan }
+        if not tjdata.empty:
+            point = tjdata['TecJet_GasDiffPress'].idxmin()
+            if point == point: # test for not NaN
+                datapoint = tjdata.loc[point]
+                dpmin = tjdata.at[datapoint.name,'TecJet_GasDiffPress']
+                p_at_dpmin = tjdata.at[datapoint.name,'TecJet_GasPress1']
+                t_at_dpmin = tjdata.at[datapoint.name,'TecJet_GasTemp1']
+                res = {
+                        'dpmin': dpmin,  
+                        'p_at_dpmin': p_at_dpmin,  
+                        't_at_dpmin': t_at_dpmin
+                    }
+        results['starts'][sno].update(res)
+        return results  
+
+    def register(self,startversuch,vset=[],tfrom=None,tto=None):
+        vset += self._vset
+        vset = list(set(vset)) # unique list ...
+        if self.phase_timing(startversuch,['loadramp']):
+            tfrom = self.check_from(tfrom)
+            tto = self.check_to(tto)
+        return vset, tfrom, tto
+
 
 def loadramp_edge_detect(fsm, startversuch, debug=False, periodfactor=3, helplinefactor=0.8):
     # 1.4.2022 Aufgrund von Bautzen, der sehr langsam startet

@@ -11,7 +11,7 @@ import dmyplant2
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from .dFSMToolBox import Target_load_Collector, load_data
+from .dFSMToolBox import Target_load_Collector, Exhaust_temp_Collector, Tecjet_Collector, load_data
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -724,6 +724,8 @@ class FSMOperator:
         """
         ratedload = self._e['Power_PowerNominal']
         target_load_collector = Target_load_Collector(ratedload, period_factor=3, helplinefactor=0.8)
+        exhaust_temp_collector = Exhaust_temp_Collector()
+        tecjet_collector = Tecjet_Collector()
 
         if not silent:
             pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=2, unit=' starts', desc="FSM2", file=sys.stdout)
@@ -732,15 +734,19 @@ class FSMOperator:
             sno = startversuch['no']
             if not self.results['starts'][sno]['run2']:
                 self.results['starts'][sno]['run2'] = True
-                try:
+                #try:
 
-                    vset, tfrom, tto = target_load_collector.register(startversuch)
-                    # ... register all collectors and load the collected data
-                    data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='loadramp', debug=False)
-                    if not data.empty:
-                        self.results = target_load_collector.collect(startversuch, self.results, data)
-                        phases = list(self.results['starts'][sno]['startstoptiming'].keys())
-                        self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
+                vset, tfrom, tto = target_load_collector.register(startversuch)
+                vset, tfrom, tto = exhaust_temp_collector.register(startversuch, vset, tfrom, tto)
+                vset, tfrom, tto = tecjet_collector.register(startversuch, vset, tfrom, tto)
+                # ... register all collectors , load the collected data
+                data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='loadramp', debug=False)
+                if not data.empty:
+                    self.results = target_load_collector.collect(startversuch, self.results, data)
+                    self.results = exhaust_temp_collector.collect(startversuch, self.results, data)
+                    self.results = tecjet_collector.collect(startversuch, self.results, data)
+                    phases = list(self.results['starts'][sno]['startstoptiming'].keys())
+                    self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
 
                     # 2022-04-20, old code, will keep it until new code finally validated. Dieter
                     # data, xmax, ymax, duration, ramprate = dmyplant2.loadramp_edge_detect(self, startversuch, debug=debug, periodfactor=3, helplinefactor=0.8)
@@ -755,8 +761,8 @@ class FSMOperator:
                     #     self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
                     #print(f"Start: {startversuch['no']:3d} xmax: {xmax}, ymax: {ymax:6.0f}, duration: {duration:5.1f}, ramprate: {ramprate / ratedload * 100.0:4.2f} %/s")
 
-                except Exception as err:
-                    print('During Run2 , an Error occured:', err)
+                #except Exception as err:
+                #    print('During Run2 , an Error occured:', err)
             if not silent:
                 pbar.update()
                         

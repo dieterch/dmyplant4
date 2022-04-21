@@ -69,8 +69,8 @@ def FSM_add_Notations(fig,fsm,startversuch):
 
     # max load if available
     if 'maxload' in startversuch:
-        if startversuch['maxload'] == startversuch['maxload']:
-            fig.add_layout(Span(location=startversuch['maxload'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
+        if startversuch['targetload'] == startversuch['targetload']:
+            fig.add_layout(Span(location=startversuch['targetload'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
 
     # Nominal Speed as horizontal Line
     fig.add_layout(Span(location=fsm._e.Speed_nominal,dimension='width',x_range_name='default', y_range_name='1',line_color='blue', line_dash='solid', line_alpha=0.4)) 
