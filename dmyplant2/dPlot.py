@@ -54,7 +54,8 @@ def equal_adjust(dset, data, do_not_adjust=[], debug=False, qmin=0.02, qmax=0.95
     def debug_dset(dset):
         for row in dset:
             print(f"{str(row['col']):40} {row['ylim'] if 'ylim' in row else 'no ylim'}")
-
+    vset = [d for col in [rec['col'] for rec in dset] for d in col]
+    do_not_adjust = [x if type(x)==int else vset.index(x) for x in do_not_adjust]
     num_axes = len(dset) - len(do_not_adjust)
     dncm = [len(dset) + d for d in do_not_adjust if  d < 0]
     dncp = [d for d in do_not_adjust if  d >= 0]

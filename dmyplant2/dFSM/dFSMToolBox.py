@@ -122,8 +122,8 @@ class Exhaust_temp_Collector(Start_Data_Collector):
 class Tecjet_Collector(Start_Data_Collector):
     def __init__(self, phases, results):
         super().__init__(phases)
-        self._vset += ['TecJet_Lambda1','TecJet_GasTemp1','TecJet_GasPress1','TecJet_GasDiffPress']
-        self._content = ['TJ_GasDiffPressMin','TJ_GasPress1_at_Min','TJ_GasTemp1_at_Min']
+        self._vset += ['TecJet_Lambda1','TecJet_GasTemp1','TecJet_GasPress1','TecJet_GasDiffPress','TecJet_ValvePos1']
+        self._content = ['TJ_GasDiffPressMin','TJ_GasPress1_at_Min','TJ_GasTemp1_at_Min','TJ_Pos_at_Min']
         results['run2_content'] += self._content
 
     def collect(self, startversuch, results, data):
@@ -136,10 +136,12 @@ class Tecjet_Collector(Start_Data_Collector):
                 dpmin = tjdata.at[datapoint.name,'TecJet_GasDiffPress']
                 p_at_dpmin = tjdata.at[datapoint.name,'TecJet_GasPress1']
                 t_at_dpmin = tjdata.at[datapoint.name,'TecJet_GasTemp1']
+                pos_at_dpmin = tjdata.at[datapoint.name,'TecJet_ValvePos1']
                 res = {
                         'TJ_GasDiffPressMin': dpmin,  
                         'TJ_GasPress1_at_Min': p_at_dpmin,  
-                        'TJ_GasTemp1_at_Min': t_at_dpmin
+                        'TJ_GasTemp1_at_Min': t_at_dpmin,
+                        'TJ_Pos_at_Min': pos_at_dpmin
                     }
         sno = startversuch['no']
         results['starts'][sno].update(res)
@@ -149,8 +151,8 @@ class Sync_Current_Collector(Start_Data_Collector):
     def __init__(self,phases, results, speed_nominal):
         super().__init__(phases)
         self._speed_nominal = speed_nominal
-        self._vset += ['Various_Values_SpeedAct']
-        self._content = ['rpm_dmax','rpm_dmin','rpm_spread']
+        self._vset += ['Various_Values_SpeedAct','TecJet_Lambda1', 'Hyd_TempOil', 'Hyd_TempCoolWat']
+        self._content = ['rpm_dmax','rpm_dmin','rpm_spread', 'Lambda_rpm_max', 'TempOil_rpm_max', 'TempCoolWat_rpm_max']
         results['run2_content'] += self._content
 
 
@@ -164,6 +166,9 @@ class Sync_Current_Collector(Start_Data_Collector):
                 datapoint = sydata.loc[point]
                 xmax = datapoint['datetime']
                 res['rpm_dmax'] = sydata.at[datapoint.name,'Various_Values_SpeedAct'] - self._speed_nominal
+                res['Lambda_rpm_max'] = sydata.at[datapoint.name,'TecJet_Lambda1']
+                res['TempOil_rpm_max'] = sydata.at[datapoint.name,'Hyd_TempOil']
+                res['TempCoolWat_rpm_max'] = sydata.at[datapoint.name,'Hyd_TempCoolWat']
                 # filter data from point of highest speed to end of phase
                 tsleft = int(xmax.timestamp() * 1e3)
                 sydata2 = sydata[sydata.time > tsleft].reset_index(drop=True)
