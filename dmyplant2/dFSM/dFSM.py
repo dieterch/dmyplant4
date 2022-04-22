@@ -478,6 +478,7 @@ class FSMOperator:
                 'alarms':[],
                 'warnings':[]                
             }],
+            'run2_content': startstopFSM.run2filter_content,
             'serviceselectortiming':[],
             'oilpumptiming':[],
             'stops_counter':0,
@@ -724,9 +725,9 @@ class FSMOperator:
         """
         ratedload = self._e['Power_PowerNominal']
         target_load_collector = Target_load_Collector(['loadramp'],ratedload, period_factor=3, helplinefactor=0.8)
-        exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'])
-        tecjet_collector = Tecjet_Collector(['loadramp'])
-        sync_current_collector = Sync_Current_Collector(['idle','synchronize'], self._e.Speed_nominal)
+        exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'], self.results)
+        tecjet_collector = Tecjet_Collector(['loadramp'], self. results)
+        sync_current_collector = Sync_Current_Collector(['idle','synchronize'],self.results, self._e.Speed_nominal)
 
         if not silent:
             pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=2, unit=' starts', desc="FSM2", file=sys.stdout)

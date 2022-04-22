@@ -10,10 +10,6 @@ class Start_Data_Collector:
         self.end = None
         self._data = pd.DataFrame([])
 
-    @property
-    def data(self):
-        return self._data
-
     def phase_timing(self, startversuch, phases):
         ok = all([k in startversuch['startstoptiming'] for k in phases])
         if ok:
@@ -98,14 +94,15 @@ class Target_load_Collector(Start_Data_Collector):
             tto = self.check_to(tto)
         return vset, tfrom, tto
 class Exhaust_temp_Collector(Start_Data_Collector):
-    def __init__(self, phases):
+    def __init__(self, phases, results):
         super().__init__(phases)
         self._vset += ['Power_PowerAct','Exhaust_TempCylMin','Exhaust_TempCylMax']
+        self._content = ['ExhTempCylMax','ExhSpread_at_Max','Power_at_ExhTempCylMax']
+        results['run2_content'] += self._content
 
     def collect(self, startversuch, results, data):
         tdata = self.cut_data(startversuch, data, self._phases)
-        sno = startversuch['no']
-        res = {'tmax':np.nan, 'spread_at_tmax':np.nan, 'power_at_tmax': np.nan }
+        res = { k:np.nan for k in self._content } # initialize results
         if not tdata.empty:
             point = tdata['Exhaust_TempCylMax'].idxmax()
             if point == point: # test for not NaN
@@ -115,21 +112,23 @@ class Exhaust_temp_Collector(Start_Data_Collector):
                 tspread = tmax - tmin
                 tpow  = tdata.at[datapoint.name,'Power_PowerAct']
                 res = {
-                        'tmax':tmax,
-                        'spread_at_tmax': tspread,  
-                        'power_at_tmax': tpow
+                        'ExhTempCylMax':tmax,
+                        'ExhSpread_at_Max': tspread,  
+                        'Power_at_ExhTempCylMax': tpow
                     }
+        sno = startversuch['no']
         results['starts'][sno].update(res) 
         return results 
 class Tecjet_Collector(Start_Data_Collector):
-    def __init__(self, phases):
+    def __init__(self, phases, results):
         super().__init__(phases)
         self._vset += ['TecJet_Lambda1','TecJet_GasTemp1','TecJet_GasPress1','TecJet_GasDiffPress']
+        self._content = ['TJ_GasDiffPressMin','TJ_GasPress1_at_Min','TJ_GasTemp1_at_Min']
+        results['run2_content'] += self._content
 
     def collect(self, startversuch, results, data):
         tjdata = self.cut_data(startversuch, data, self._phases)
-        sno = startversuch['no']
-        res = {'dpmin':np.nan, 'p_at_dpmin':np.nan, 't_at_dpmin': np.nan }
+        res = { k:np.nan for k in self._content } # initialize results
         if not tjdata.empty:
             point = tjdata['TecJet_GasDiffPress'].idxmin()
             if point == point: # test for not NaN
@@ -138,30 +137,33 @@ class Tecjet_Collector(Start_Data_Collector):
                 p_at_dpmin = tjdata.at[datapoint.name,'TecJet_GasPress1']
                 t_at_dpmin = tjdata.at[datapoint.name,'TecJet_GasTemp1']
                 res = {
-                        'dpmin': dpmin,  
-                        'p_at_dpmin': p_at_dpmin,  
-                        't_at_dpmin': t_at_dpmin
+                        'TJ_GasDiffPressMin': dpmin,  
+                        'TJ_GasPress1_at_Min': p_at_dpmin,  
+                        'TJ_GasTemp1_at_Min': t_at_dpmin
                     }
+        sno = startversuch['no']
         results['starts'][sno].update(res)
         return results  
 
 class Sync_Current_Collector(Start_Data_Collector):
-    def __init__(self,phases, speed_nominal):
+    def __init__(self,phases, results, speed_nominal):
         super().__init__(phases)
         self._speed_nominal = speed_nominal
         self._vset += ['Various_Values_SpeedAct']
+        self._content = ['rpm_dmax','rpm_dmin','rpm_spread']
+        results['run2_content'] += self._content
+
 
     def collect(self, startversuch, results, data):
         sydata = self.cut_data(startversuch, data, self._phases) # ['idle','synchronize']
-        sno = startversuch['no']
-        res = {'rpm_max':np.nan, 'rpm_spread':np.nan }
+        res = { k:np.nan for k in self._content } # initialize results
         if not sydata.empty:
             # lookup highest speed in phases
             point = sydata['Various_Values_SpeedAct'].idxmax()
             if point == point: # test for not NaN
                 datapoint = sydata.loc[point]
                 xmax = datapoint['datetime']
-                res['rpm_max'] = sydata.at[datapoint.name,'Various_Values_SpeedAct'] - self._speed_nominal
+                res['rpm_dmax'] = sydata.at[datapoint.name,'Various_Values_SpeedAct'] - self._speed_nominal
                 # filter data from point of highest speed to end of phase
                 tsleft = int(xmax.timestamp() * 1e3)
                 sydata2 = sydata[sydata.time > tsleft].reset_index(drop=True)
@@ -171,8 +173,9 @@ class Sync_Current_Collector(Start_Data_Collector):
                     if point2 == point2:
                         datapoint2 = sydata2.loc[point2]
                         # calcultae speed spread during synchronization
-                        res['rpm_min'] = sydata2.at[datapoint2.name,'Various_Values_SpeedAct'] - self._speed_nominal
-                        res['rpm_spread'] = res['rpm_max'] - res['rpm_min']
+                        res['rpm_dmin'] = sydata2.at[datapoint2.name,'Various_Values_SpeedAct'] - self._speed_nominal
+                        res['rpm_spread'] = res['rpm_dmax'] - res['rpm_dmin']
+        sno = startversuch['no']
         results['starts'][sno].update(res)
         return results  
 
