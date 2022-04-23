@@ -218,7 +218,7 @@ class ServiceSelectorFSM(FSM):
 ###########################################################################################
 class startstopFSM(FSM):
     # useful abbrevations
-    run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','targetoperation','rampdown','coolrun','runout','count_alarms', 'count_warnings']
+    run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','targetoperation','rampdown','coolrun','runout','A', 'W']
     vertical_lines_times = ['startpreparation','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
     start_timing_states =  ['startpreparation','starter','speedup','idle','synchronize','loadramp']
     
@@ -300,13 +300,13 @@ class startstopFSM(FSM):
 
     def check_success(self, start):
         # check if a start is successful:
-        count_alarms_in_startphase = len([a for a in start['alarms'] if a['state'] in self.start_timing_states])
+        A_in_startphase = len([a for a in start['alarms'] if a['state'] in self.start_timing_states])
         if 'targetoperation' in start:
-            if (start['targetoperation'] > self._successtime) and (count_alarms_in_startphase == 0):
+            if (start['targetoperation'] > self._successtime) and (A_in_startphase == 0):
                 start['success'] = 'success'
                 return
         # check an alarm occured 
-        if count_alarms_in_startphase > 0:
+        if A_in_startphase > 0:
             start['success'] = 'failed'
         else: # no alarm, but too short engine operation => assume to be intentionally stopped early.
             start['success'] = 'undefined'
@@ -331,8 +331,8 @@ class startstopFSM(FSM):
             # start a 'on' cycle
             if nsvec[self.name].currentstate == 'startpreparation':
                 results['stops'][-1]['endtime'] = nsvec[self.name].currentstate_start
-                results['stops'][-1]['count_alarms'] = len(results['stops'][-1]['alarms'])
-                results['stops'][-1]['count_warnings'] = len(results['stops'][-1]['warnings'])
+                results['stops'][-1]['A'] = len(results['stops'][-1]['alarms'])
+                results['stops'][-1]['W'] = len(results['stops'][-1]['warnings'])
                 # apends a new record to the Starts list.
                 results['starts'].append({
                     'run2':False,
@@ -391,8 +391,8 @@ class startstopFSM(FSM):
                     self._harvest_timings(sv, phases, results)
 
                     # count alarms an warnings
-                    results['starts'][-1]['count_alarms'] = len(results['starts'][-1]['alarms'])
-                    results['starts'][-1]['count_warnings'] = len(results['starts'][-1]['warnings'])
+                    results['starts'][-1]['A'] = len(results['starts'][-1]['alarms'])
+                    results['starts'][-1]['W'] = len(results['starts'][-1]['warnings'])
 
                     self.check_success(results['starts'][-1])
                     # ######################################################################################################
