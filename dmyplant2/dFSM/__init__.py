@@ -3,6 +3,7 @@ from .dFSMData import (
     load_data, 
     get_cycle_data, 
     get_cycle_data2,
+    get_cycle_data3,
     get_period_data,
 )
 from .dFSMToolBox import (
