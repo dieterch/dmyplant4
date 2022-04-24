@@ -152,20 +152,21 @@ def _load_reduced_data_ccr(fsm, startversuch, ptts_from, ptts_to, pdata=None):
 
     data1 = pd.DataFrame([]);data2 = pd.DataFrame([]);data3 = pd.DataFrame([]);
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = []
+        future_list = []
         #data1 = load_data(fsm,cycletime=1, tts_from=ptts_from, tts_to=d1t, silent=True, p_data=pdata)
         #data2 = load_data(fsm, cycletime=30, tts_from=d1t, tts_to=d3t, silent=True, p_data=pdata)
         #data3 = load_data(fsm,cycletime=1, tts_from=d3t, tts_to=ptts_to, silent=True, p_data=pdata)
-        futures.append(executor.submit(load_data,fsm,cycletime=1, tts_from=ptts_from, tts_to=d1t, silent=True, p_data=pdata))
-        futures.append(executor.submit(load_data,fsm, cycletime=30, tts_from=d1t, tts_to=d3t, silent=True, p_data=pdata))
-        futures.append(executor.submit(load_data,fsm,cycletime=1, tts_from=d3t, tts_to=ptts_to, silent=True, p_data=pdata))
-        result = []
-        for future in concurrent.futures.as_completed(futures):
-            result.append(future.result)
-            
-        data1 = result[0]
-        data2 = result[1]
-        data3 = result[2]
+        future_list.append(executor.submit(load_data,fsm,cycletime=1, tts_from=ptts_from, tts_to=d1t, silent=True, p_data=pdata))
+        future_list.append(executor.submit(load_data,fsm, cycletime=30, tts_from=d1t, tts_to=d3t, silent=True, p_data=pdata))
+        future_list.append(executor.submit(load_data,fsm,cycletime=1, tts_from=d3t, tts_to=ptts_to, silent=True, p_data=pdata))
+        concurrent.futures.wait(future_list)
+        data1 = future_list[0].result()
+        data2 = future_list[1].result()
+        data3 = future_list[2].result()
+
+    #_debug(ptts_from,d1t, data1, 'data1')
+    #_debug(d1t,d3t, data2, 'data2')
+    #_debug(d3t,ptts_to,data3, 'data3')
 
     if 'time' in data2:
         data2 = data2[(data2['time'] >= d1t) & (data2['time'] < d3t)]
@@ -174,9 +175,6 @@ def _load_reduced_data_ccr(fsm, startversuch, ptts_from, ptts_to, pdata=None):
     if 'time' in data3:
         data3 = data3[(data3['time'] >= d3t) & (data3['time'] <= ptts_to)]
 
-    #_debug(ptts_from,d1t, data1, 'data1')
-    #_debug(d1t,d3t, data2, 'data2')
-    #_debug(d3t,ptts_to,data3, 'data3')
     return pd.concat([data1,data2,data3]).reset_index(drop='index')
 
 def get_cycle_data3(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, pre_period=5*60, post_period=21*60, t_range=(0,100)):
