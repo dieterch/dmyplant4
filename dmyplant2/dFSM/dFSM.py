@@ -715,6 +715,26 @@ class FSMOperator:
         if not silent:
             pbar.close()    
 
+    def run2_collectors_setup(self):
+        ratedload = self._e['Power_PowerNominal']
+        self.target_load_collector = Target_load_Collector(['loadramp'],ratedload, period_factor=3, helplinefactor=0.8)
+        self.exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'], self.results)
+        self.tecjet_collector = Tecjet_Collector(['loadramp'], self. results)
+        self.sync_current_collector = Sync_Current_Collector(['idle','synchronize'],self.results, self._e.Speed_nominal)
+
+    def run2_collectors_register(self, startversuch):
+        vset, tfrom, tto = self.target_load_collector.register(startversuch, vset=[], tfrom=None, tto=None) #vset,tfrom,tto will be populated by the Collectors
+        vset, tfrom, tto = self.exhaust_temp_collector.register(startversuch, vset, tfrom, tto)
+        vset, tfrom, tto = self.tecjet_collector.register(startversuch, vset, tfrom, tto)
+        vset, tfrom, tto = self.sync_current_collector.register(startversuch, vset, tfrom, tto)
+        return vset, tfrom, tto 
+
+    def run2_collectors_collect(self, startversuch, results, data):
+        results = self.target_load_collector.collect(startversuch, results, data)
+        results = self.exhaust_temp_collector.collect(startversuch, results, data)
+        results = self.tecjet_collector.collect(startversuch, results, data)
+        results = self.sync_current_collector.collect(startversuch, results, data)
+        return results
 
     def run2(self, silent=False, debug=False):
         """Statemachine Operator Run 2 - uses timings collected in previos runs to download 'Power_PowerAct'
@@ -723,11 +743,12 @@ class FSMOperator:
 
         silent (Boolean): whether a progress bar is visible or not. 
         """
-        ratedload = self._e['Power_PowerNominal']
-        target_load_collector = Target_load_Collector(['loadramp'],ratedload, period_factor=3, helplinefactor=0.8)
-        exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'], self.results)
-        tecjet_collector = Tecjet_Collector(['loadramp'], self. results)
-        sync_current_collector = Sync_Current_Collector(['idle','synchronize'],self.results, self._e.Speed_nominal)
+        # ratedload = self._e['Power_PowerNominal']
+        # target_load_collector = Target_load_Collector(['loadramp'],ratedload, period_factor=3, helplinefactor=0.8)
+        # exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'], self.results)
+        # tecjet_collector = Tecjet_Collector(['loadramp'], self. results)
+        # sync_current_collector = Sync_Current_Collector(['idle','synchronize'],self.results, self._e.Speed_nominal)
+        self.run2_collectors_setup()
 
         if not silent:
             pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=2, unit=' starts', desc="FSM2", file=sys.stdout)
@@ -738,12 +759,13 @@ class FSMOperator:
                 self.results['starts'][sno]['run2'] = True
                 #try:
                 # collect dataItems & phases, align an load data in one request to myplant per Start. 
-                vset, tfrom, tto = target_load_collector.register(startversuch)
-                vset, tfrom, tto = exhaust_temp_collector.register(startversuch, vset, tfrom, tto)
-                vset, tfrom, tto = tecjet_collector.register(startversuch, vset, tfrom, tto)
-                vset, tfrom, tto = sync_current_collector.register(startversuch, vset, tfrom, tto)
+                # vset, tfrom, tto = target_load_collector.register(startversuch)
+                # vset, tfrom, tto = exhaust_temp_collector.register(startversuch, vset, tfrom, tto)
+                # vset, tfrom, tto = tecjet_collector.register(startversuch, vset, tfrom, tto)
+                # vset, tfrom, tto = sync_current_collector.register(startversuch, vset, tfrom, tto)
+                vset, tfrom, tto = self.run2_collectors_register(startversuch)
 
-                data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='loadramp', debug=False)
+                data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='_loadramp', debug=False)
                 # TODO: move the data.empty into the collectors to allow individual reaction and 
                 # TODO: streamline results, even when there is no data available.
                 if not data.empty:
@@ -751,10 +773,11 @@ class FSMOperator:
                     # TODO: implement an algorithm to automatically execute registered run2 data collectors
                     # TODO: Vision is a simple plugin Inetrface to allow Engineers with limited Python, but
                     # TODO: deep domain knowledge to plug in their code and collect Field data 
-                    self.results = target_load_collector.collect(startversuch, self.results, data)
-                    self.results = exhaust_temp_collector.collect(startversuch, self.results, data)
-                    self.results = tecjet_collector.collect(startversuch, self.results, data)
-                    self.results = sync_current_collector.collect(startversuch, self.results, data)
+                    # self.results = target_load_collector.collect(startversuch, self.results, data)
+                    # self.results = exhaust_temp_collector.collect(startversuch, self.results, data)
+                    # self.results = tecjet_collector.collect(startversuch, self.results, data)
+                    # self.results = sync_current_collector.collect(startversuch, self.results, data)
+                    self.results = self.run2_collectors_collect(startversuch, self.results, data)
                     phases = list(self.results['starts'][sno]['startstoptiming'].keys())
                     self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
 
