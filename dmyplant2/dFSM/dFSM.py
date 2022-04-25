@@ -93,7 +93,13 @@ class LoadrampStateV2(State):
         # calculate the end of ramp time if it isnt defined.
         if self._full_load_timestamp == None:
             self._full_load_timestamp = int((vector.currentstate_start.timestamp() + self._default_ramp_duration) * 1e3)
-            self._operator.inject_message({'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600})
+            #self._operator.inject_message({'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600})
+            new_msg = copy.deepcopy(msg)
+            new_msg['name'] = '9047'
+            new_msg['message'] = 'Target load reached (calculated)'
+            new_msg['timestamp'] = self._full_load_timestamp
+            new_msg['severity'] = 600
+            self._operator.inject_message(new_msg)
 
         # use the message target load reached to make the trigger more accurate. (This message isnt available on all engines.)
         if msg['name'] == '9047':
@@ -418,18 +424,18 @@ class startstopFSM(FSM):
                     'warnings':[]
                 })
 
-            _logline= {
-                'laststate': nsvec[self.name].laststate,
-                'laststate_start': nsvec[self.name].laststate_start,
-                'msg': nsvec['msg']['name'] + ' ' + nsvec['msg']['message'],
-                'currenstate': nsvec[self.name].currentstate,
-                'currentstate_start': nsvec[self.name].currentstate_start,
-                'starts': len(results['starts']),
-                'Successful_starts': len([s for s in results['starts'] if s['success']]),
-                'operation': nsvec['in_operation'],
-                'mode': nsvec['service_selector'],
-            }
-            results['runlog'].append(_logline)
+            # _logline= {
+            #     'laststate': nsvec[self.name].laststate,
+            #     'laststate_start': nsvec[self.name].laststate_start,
+            #     'msg': nsvec['msg']['name'] + ' ' + nsvec['msg']['message'],
+            #     'currenstate': nsvec[self.name].currentstate,
+            #     'currentstate_start': nsvec[self.name].currentstate_start,
+            #     'starts': len(results['starts']),
+            #     'Successful_starts': len([s for s in results['starts'] if s['success']]),
+            #     'operation': nsvec['in_operation'],
+            #     'mode': nsvec['service_selector'],
+            # }
+            # results['runlog'].append(_logline)
 
 class FSMOperator:
     def __init__(self, e, p_from = None, p_to=None, skip_days=None, frompickle='NOTIMPLEMENTED'):
@@ -460,6 +466,7 @@ class FSMOperator:
 
         self.pfn = self._e._fname + '_statemachine.pkl'
         self.hdfn = self._e._fname + '_statemachine.hdf'
+        self.tempfn = self._e._fname + '_temp.feather'
 
     def init_results(self):
         self.results = {
@@ -665,9 +672,6 @@ class FSMOperator:
             self.init_results()            
         self.message_queue = [m for i,m in self._messages.iterrows()]
 
-        #del(self._messages)
-        #gc.collect()
-
         vecstore = copy.deepcopy(self.nsvec) # store statevector
         if not silent:
             pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM0", file=sys.stdout)
@@ -685,8 +689,15 @@ class FSMOperator:
         self.message_queue, self.extra_messages = self.merge_extra_messages(self.message_queue, self.extra_messages)
         self.debug_msg('extra messages after merge:',self.extra_messages, debug=debug)
         if not silent:
-            pbar.close()        
+            pbar.close() 
 
+        if os.path.exists(self.tempfn):
+            os.remove(self.tempfn)
+        pd.DataFrame(self.message_queue).reset_index().to_feather(self.tempfn)
+
+        del(self._messages)
+        del(self.message_queue)
+        gc.collect()                    
 
 ####################################
 ### Finite State Machine |     Run 1
@@ -712,10 +723,15 @@ class FSMOperator:
         """        
         self.startstopHandler.set_successtime(successtime)
 
-        if not silent:
-            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM1", file=sys.stdout)
+        self._messages = pd.read_feather(self.tempfn)
 
-        for msg in self.message_queue:
+        # if not silent:
+        #     pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM1", file=sys.stdout)
+        if not silent:
+            pbar = tqdm(total=len(self._messages), ncols=80, mininterval=1, unit=' messages', desc="FSM1", file=sys.stdout)
+
+        #for msg in self.message_queue:
+        for i, msg in self._messages.iterrows():
             # inject new message into StatesVector
             self.nsvec['msg'] = msg
             self.nsvec = self.run1_call_triggers(self.nsvec)
@@ -733,11 +749,8 @@ class FSMOperator:
         if not silent:
             pbar.close()
 
-        #del(self.startstopHandler)
-        #del(self.serviceSelectorHandler)
-        #del(self.oilpumpHandler)
-        #del(self.message_queue)
-        #gc.collect()
+        del(self._messages)
+        gc.collect()
 
 ####################################
 ### Finite State Machine |     Run 2
