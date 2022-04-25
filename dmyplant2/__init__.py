@@ -35,6 +35,7 @@ from dmyplant2.dFSM import (
     FSM_add_Alarms,
     FSM_add_Warnings,
     load_data,
+    get_size,
     get_cycle_data, 
     get_cycle_data2, 
     get_cycle_data3, 

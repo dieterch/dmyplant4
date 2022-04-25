@@ -1,4 +1,5 @@
 import copy
+import gc
 from datetime import datetime
 import logging
 import os
@@ -610,9 +611,9 @@ class FSMOperator:
         log = [makestr(x) for x in log if ((x['msg']['timestamp'] >= ts_start) and (x['msg']['timestamp'] <= ts_end))]
         return log
 
-#################################################################################################################
-### die Finite State Operating Runs:
-
+####################################
+### Finite State Machine |     Run 0
+####################################
     def debug_msg(self, titel, msgque, max=100000, debug=False):
         """Helper Function for debugging run cycles
 
@@ -664,6 +665,9 @@ class FSMOperator:
             self.init_results()            
         self.message_queue = [m for i,m in self._messages.iterrows()]
 
+        #del(self._messages)
+        #gc.collect()
+
         vecstore = copy.deepcopy(self.nsvec) # store statevector
         if not silent:
             pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM0", file=sys.stdout)
@@ -683,6 +687,22 @@ class FSMOperator:
         if not silent:
             pbar.close()        
 
+
+####################################
+### Finite State Machine |     Run 1
+####################################
+
+    def run1_call_triggers(self, _nsvec):
+        _nsvec = self.startstopHandler.call_trigger_states(_nsvec)
+        _nsvec = self.serviceSelectorHandler.call_trigger_states(_nsvec)
+        _nsvec = self.oilpumpHandler.call_trigger_states(_nsvec)        
+        return _nsvec
+
+    def run1_collect_data(self, _nsvec, _results):
+        self.startstopHandler.collect_data(_nsvec, _results)
+        self.serviceSelectorHandler.collect_data(_nsvec, _results)
+        self.oilpumpHandler.collect_data(_nsvec, _results)
+
     def run1(self, silent=False ,debug= False, successtime=300):
         """Statemachine Operator Run 1 - using also extra messages injected in run0 
 
@@ -698,22 +718,30 @@ class FSMOperator:
         for msg in self.message_queue:
             # inject new message into StatesVector
             self.nsvec['msg'] = msg
-            self.nsvec = self.startstopHandler.call_trigger_states(self.nsvec)
-            self.nsvec = self.serviceSelectorHandler.call_trigger_states(self.nsvec)
-            self.nsvec = self.oilpumpHandler.call_trigger_states(self.nsvec)
+            self.nsvec = self.run1_call_triggers(self.nsvec)
             
             # log Statesvector details
-            self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
+            # TODO: store in a file, in a huge result struchture
+            # TODO: retrieve by seeking this file when needed.
+            # self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
 
             # collect & harvest data:
-            self.startstopHandler.collect_data(self.nsvec, self.results)
-            self.serviceSelectorHandler.collect_data(self.nsvec, self.results)
-            self.oilpumpHandler.collect_data(self.nsvec, self.results)
+            self.run1_collect_data(self.nsvec, self.results)
 
             if not silent:
                 pbar.update()
         if not silent:
-            pbar.close()    
+            pbar.close()
+
+        #del(self.startstopHandler)
+        #del(self.serviceSelectorHandler)
+        #del(self.oilpumpHandler)
+        #del(self.message_queue)
+        #gc.collect()
+
+####################################
+### Finite State Machine |     Run 2
+####################################
 
     def run2_collectors_setup(self):
         ratedload = self._e['Power_PowerNominal']
@@ -743,11 +771,6 @@ class FSMOperator:
 
         silent (Boolean): whether a progress bar is visible or not. 
         """
-        # ratedload = self._e['Power_PowerNominal']
-        # target_load_collector = Target_load_Collector(['loadramp'],ratedload, period_factor=3, helplinefactor=0.8)
-        # exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'], self.results)
-        # tecjet_collector = Tecjet_Collector(['loadramp'], self. results)
-        # sync_current_collector = Sync_Current_Collector(['idle','synchronize'],self.results, self._e.Speed_nominal)
         self.run2_collectors_setup()
 
         if not silent:
@@ -759,10 +782,6 @@ class FSMOperator:
                 self.results['starts'][sno]['run2'] = True
                 #try:
                 # collect dataItems & phases, align an load data in one request to myplant per Start. 
-                # vset, tfrom, tto = target_load_collector.register(startversuch)
-                # vset, tfrom, tto = exhaust_temp_collector.register(startversuch, vset, tfrom, tto)
-                # vset, tfrom, tto = tecjet_collector.register(startversuch, vset, tfrom, tto)
-                # vset, tfrom, tto = sync_current_collector.register(startversuch, vset, tfrom, tto)
                 vset, tfrom, tto = self.run2_collectors_register(startversuch)
 
                 data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='_loadramp', debug=False)
@@ -773,10 +792,6 @@ class FSMOperator:
                     # TODO: implement an algorithm to automatically execute registered run2 data collectors
                     # TODO: Vision is a simple plugin Inetrface to allow Engineers with limited Python, but
                     # TODO: deep domain knowledge to plug in their code and collect Field data 
-                    # self.results = target_load_collector.collect(startversuch, self.results, data)
-                    # self.results = exhaust_temp_collector.collect(startversuch, self.results, data)
-                    # self.results = tecjet_collector.collect(startversuch, self.results, data)
-                    # self.results = sync_current_collector.collect(startversuch, self.results, data)
                     self.results = self.run2_collectors_collect(startversuch, self.results, data)
                     phases = list(self.results['starts'][sno]['startstoptiming'].keys())
                     self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
