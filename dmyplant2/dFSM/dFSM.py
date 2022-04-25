@@ -780,24 +780,24 @@ class FSMOperator:
             sno = startversuch['no']
             if not self.results['starts'][sno]['run2']:
                 self.results['starts'][sno]['run2'] = True
-                #try:
-                # collect dataItems & phases, align an load data in one request to myplant per Start. 
-                vset, tfrom, tto = self.run2_collectors_register(startversuch)
+                try:
+                    # collect dataItems & phases, align an load data in one request to myplant per Start. 
+                    vset, tfrom, tto = self.run2_collectors_register(startversuch)
 
-                data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='_loadramp', debug=False)
-                # TODO: move the data.empty into the collectors to allow individual reaction and 
-                # TODO: streamline results, even when there is no data available.
-                if not data.empty:
-                    # collect data
-                    # TODO: implement an algorithm to automatically execute registered run2 data collectors
-                    # TODO: Vision is a simple plugin Inetrface to allow Engineers with limited Python, but
-                    # TODO: deep domain knowledge to plug in their code and collect Field data 
-                    self.results = self.run2_collectors_collect(startversuch, self.results, data)
-                    phases = list(self.results['starts'][sno]['startstoptiming'].keys())
-                    self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
+                    data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='loadramp', debug=False)
+                    # TODO: move the data.empty into the collectors to allow individual reaction and 
+                    # TODO: streamline results, even when there is no data available.
+                    if not data.empty:
+                        # collect data
+                        # TODO: implement an algorithm to automatically execute registered run2 data collectors
+                        # TODO: Vision is a simple plugin Inetrface to allow Engineers with limited Python, but
+                        # TODO: deep domain knowledge to plug in their code and collect Field data 
+                        self.results = self.run2_collectors_collect(startversuch, self.results, data)
+                        phases = list(self.results['starts'][sno]['startstoptiming'].keys())
+                        self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
 
-                #except Exception as err:
-                #    print('During Run2 , an Error occured:', err)
+                except Exception as err:
+                    print(f"\nDuring Run2 {startversuch['no']} from {startversuch['starttime'].round('S')} to {startversuch['endtime'].round('S')}, this Error occured: {err}")
             if not silent:
                 pbar.update()
                         
