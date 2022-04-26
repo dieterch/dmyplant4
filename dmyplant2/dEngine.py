@@ -14,6 +14,7 @@ import logging
 import json
 import arrow
 import warnings
+import gc
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
 class Engine:
@@ -200,7 +201,8 @@ class Engine:
         self._data_base = os.getcwd() + f'/data/{str(self._sn)}'
         #self._data_base = os.getcwd() + f'/data/{str(self._sn)}'
         if not os.path.exists(self._data_base):
-            os.makedirs(self._data_base)        
+            os.makedirs(self._data_base)
+        self._ldata = None        
         self._picklefile = self._fname + '.pkl'    # load persitant data
         self._infofile = self._fname + '.json'
         self._last_fetch_date = None
@@ -258,6 +260,12 @@ class Engine:
                 self._last_fetch_date = epoch_ts(datetime.now().timestamp())
             else:
                 self.__dict__ = self.ldata
+                try:
+                    del(self.ldata)
+                    gc.collect()
+                except Exception as err:
+                    print(str(err))
+
                 # with open(self._picklefile, 'rb') as handle:
                 #     self.__dict__ = pickle.load(handle)
         except FileNotFoundError:
@@ -496,7 +504,13 @@ class Engine:
 
         try:
             with open(self._picklefile, 'wb') as handle:
+                try:
+                    del(self.ldata)
+                    gc.collect()
+                except Exception as err:
+                    print('Engine _save: cannot delete ldata before dump')
                 pickle.dump(self.__dict__, handle, protocol=4)
+
         except FileNotFoundError:
             errortext = f'Cound not write to File {self._picklefile}.'
             logging.error(errortext)

@@ -73,7 +73,12 @@ class Target_load_Collector(Start_Data_Collector):
         ymax = 0.0
         if 'loadramp' in startversuch['startstoptiming']:
             if not data.empty:
-                xmax, ymax = self.left_upper_edge('Power_PowerAct', data, self.helplinefactor, xmax, ymax)
+                try:
+                    xmax, ymax = self.left_upper_edge('Power_PowerAct', data, self.helplinefactor, xmax, ymax)
+                except Exception as err:
+                    # Berechnung sAbbrechen
+                    print(f"{startversuch['no']}.", end = '')
+                    return results
             duration = xmax.timestamp() - self.start
             ramprate = ymax / duration
             if  duration < 5: # constant load ?
@@ -86,7 +91,7 @@ class Target_load_Collector(Start_Data_Collector):
                 results['starts'][sno]['startstoptiming']['targetoperation'][0]['start'] = xmax
             results['starts'][sno]['targetload'] = ymax
             results['starts'][sno]['ramprate'] = ramprate / self.ratedload * 100.0
-            return results
+        return results
 
     def register(self,startversuch,vset=[],tfrom=None,tto=None):
         vset, tfrom, tto = super().register(startversuch,vset,tfrom,tto)

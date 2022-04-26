@@ -1,6 +1,7 @@
 import copy
 import gc
 from datetime import datetime
+import traceback
 import logging
 import os
 import sys
@@ -739,7 +740,7 @@ class FSMOperator:
             # log Statesvector details
             # TODO: store in a file, in a huge result struchture
             # TODO: retrieve by seeking this file when needed.
-            # self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
+            #self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
 
             # collect & harvest data:
             self.run1_collect_data(self.nsvec, self.results)
@@ -797,7 +798,7 @@ class FSMOperator:
                     # collect dataItems & phases, align an load data in one request to myplant per Start. 
                     vset, tfrom, tto = self.run2_collectors_register(startversuch)
 
-                    data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='loadramp', debug=False)
+                    data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='_run2', debug=False)
                     # TODO: move the data.empty into the collectors to allow individual reaction and 
                     # TODO: streamline results, even when there is no data available.
                     if not data.empty:
@@ -809,8 +810,14 @@ class FSMOperator:
                         phases = list(self.results['starts'][sno]['startstoptiming'].keys())
                         self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
 
+#                except Exception as err:
+#                    print(f"\nDuring Run2 {startversuch['no']} from {startversuch['starttime'].round('S')} to {startversuch['endtime'].round('S')}, this Error occured: {err}")
                 except Exception as err:
-                    print(f"\nDuring Run2 {startversuch['no']} from {startversuch['starttime'].round('S')} to {startversuch['endtime'].round('S')}, this Error occured: {err}")
+                    if debug:
+                        print(traceback.format_exc())
+                    else:
+                        print(f"\nDuring Run2 {startversuch['no']} from {startversuch['starttime'].round('S')} to {startversuch['endtime'].round('S')}, this Error occured: {err}")
+
             if not silent:
                 pbar.update()
                         
