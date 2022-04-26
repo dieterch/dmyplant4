@@ -28,6 +28,7 @@ class nStateVector:
     laststate_start = None
     currentstate = ''
     currentstate_start = None
+    attrs = ['statechange','laststate','laststate_start','currentstate_start']
 
     def __str__(self):
         return  f"{'*' if self.statechange else '':2}|"+ \
@@ -42,6 +43,12 @@ class nStateVector:
                 f"LS  {self.laststate:18}| " + \
                 f"CSS {self.currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
                 f"CS  {self.currentstate:18}| "
+
+    def log(self):
+        d = dict()
+        for a in self.attrs:
+            d['a'] = self.getattr(self,a)
+        return d
 
 ###########################################################################################
 ## State class
@@ -139,6 +146,7 @@ class FSM:
         v.laststate_start = first_message
         v.currentstate = self.initial_state
         v.currentstate_start = first_message
+        
         self.svec = v
         return self.svec        
 
@@ -170,6 +178,7 @@ class FSM:
 class OilPumpFSM(FSM):
     def __init__(self):
         self.name = 'oilpump'
+        self.vec_name = 'oil_pump'
         self._initial_state = 'undefined'
         self._states = {
                 'undefined': State('undefined',
@@ -182,7 +191,7 @@ class OilPumpFSM(FSM):
         }
     def collect_data(self, nsvec, results):
         if nsvec[self.name].statechange:
-            nsvec['oil_pump'] = nsvec[self.name].currentstate
+            nsvec[self.vec_name] = nsvec[self.name].currentstate
             results['oilpumptiming'].append({
                 'state':nsvec[self.name].currentstate,
                 'time':nsvec[self.name].currentstate_start})
@@ -193,6 +202,7 @@ class OilPumpFSM(FSM):
 class ServiceSelectorFSM(FSM):
     def __init__(self):
         self.name = 'serviceselector'
+        self.vec_name = 'service_selector'
         self._initial_state = 'undefined'
         self._states = {
                 'undefined': State('undefined',[
@@ -216,7 +226,7 @@ class ServiceSelectorFSM(FSM):
     def collect_data(self, nsvec, results):
         # do in case of a statchange:
         if nsvec[self.name].statechange:
-            nsvec['service_selector'] = nsvec[self.name].currentstate
+            nsvec[self.vec_name] = nsvec[self.name].currentstate
             results['serviceselectortiming'].append({
                 'state':nsvec[self.name].currentstate,
                 'time':nsvec[self.name].currentstate_start})
@@ -491,6 +501,7 @@ class FSMOperator:
             'serviceselectortiming':[],
             'oilpumptiming':[],
             'stops_counter':0,
+            'run2_failed':[],
             'runlog': [],
             'runlogdetail': []
         } 
@@ -740,7 +751,7 @@ class FSMOperator:
             # log Statesvector details
             # TODO: store in a file, in a huge result struchture
             # TODO: retrieve by seeking this file when needed.
-            #self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
+            self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
 
             # collect & harvest data:
             self.run1_collect_data(self.nsvec, self.results)
@@ -786,6 +797,7 @@ class FSMOperator:
         silent (Boolean): whether a progress bar is visible or not. 
         """
         self.run2_collectors_setup()
+        self.results['run2_failed'] = []
 
         if not silent:
             pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=2, unit=' starts', desc="FSM2", file=sys.stdout)
@@ -822,4 +834,5 @@ class FSMOperator:
                 pbar.update()
                         
         if not silent:
-            pbar.close() 
+            pbar.close()
+
