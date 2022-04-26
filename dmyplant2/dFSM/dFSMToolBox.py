@@ -77,7 +77,7 @@ class Target_load_Collector(Start_Data_Collector):
                     xmax, ymax = self.left_upper_edge('Power_PowerAct', data, self.helplinefactor, xmax, ymax)
                 except Exception as err:
                     # Berechnung sAbbrechen
-                    print(f"{startversuch['no']}.", end = '')
+                    results['run2_failed'].append(startversuch)
                     return results
             duration = xmax.timestamp() - self.start
             ramprate = ymax / duration
