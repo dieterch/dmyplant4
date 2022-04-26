@@ -1,4 +1,5 @@
 ﻿from datetime import datetime, timedelta
+import gc
 import math
 from multiprocessing.sharedctypes import Value
 from pprint import pprint as pp
@@ -258,6 +259,9 @@ class Engine:
                 self._last_fetch_date = epoch_ts(datetime.now().timestamp())
             else:
                 self.__dict__ = self.ldata
+                
+                del self.ldata
+                gc.collect()
                 # with open(self._picklefile, 'rb') as handle:
                 #     self.__dict__ = pickle.load(handle)
         except FileNotFoundError:

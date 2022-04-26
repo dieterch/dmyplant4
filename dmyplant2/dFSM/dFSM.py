@@ -621,20 +621,6 @@ class FSMOperator:
 ####################################
 ### Finite State Machine |     Run 0
 ####################################
-    def debug_msg(self, titel, msgque, max=100000, debug=False):
-        """Helper Function for debugging run cycles
-
-        Args:
-            titel (str): titlestring
-            msgque (list): List with messages
-            max (int, optional): limit to max messages to display. Defaults to 100000.
-            debug (bool, optional): switch debugging on/off. Defaults to False.
-        """
-        if debug:
-            print(titel, len(msgque), ' items')
-            for msg in msgque[:max]:
-                print(f"{msg['timestamp']} {pd.to_datetime(msg['timestamp'] * 1000000)} {msg['name']} {msg['severity']} {msg['message']}")
-            print()
 
     def merge_extra_messages(self, messages_queue, extra_messages):
         """Helper Function 
@@ -651,13 +637,20 @@ class FSMOperator:
         Returns:
             tuple: (messages_queue, extra_messages)
         """
-        emc = extra_messages.copy()
-        max_timestamp = max([ts['timestamp'] for ts in messages_queue])
-        for m in emc:
-            if m['timestamp'] < max_timestamp:
-                messages_queue.append(m)
-                extra_messages.remove(m)
-        messages_queue.sort(key=lambda x: x['timestamp'], reverse=False)
+        # emc = extra_messages.copy()
+        # max_timestamp = max([ts['timestamp'] for ts in messages_queue])
+        # for m in emc:
+        #     if m['timestamp'] < max_timestamp:
+        #         messages_queue.append(m)
+        #         extra_messages.remove(m)
+        # messages_queue.sort(key=lambda x: x['timestamp'], reverse=False)
+        # return messages_queue, extra_messages
+        
+        #emc = extra_messages.copy()
+        if len(extra_messages) > 0:
+            df_extra_messages = pd.concat(extra_messages)
+            messages_queue = pd.concat([messages_queue,df_extra_messages])
+            messages_queue = messages_queue.sort_values(by = "timestamp",ascending=True)
         return messages_queue, extra_messages
 
 
@@ -670,12 +663,14 @@ class FSMOperator:
 
         if len(self.results['starts']) == 0 or enforce:
             self.init_results()            
-        self.message_queue = [m for i,m in self._messages.iterrows()]
+        #self.message_queue = [m for i,m in self._messages.iterrows()]
 
         vecstore = copy.deepcopy(self.nsvec) # store statevector
         if not silent:
-            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM0", file=sys.stdout)
-        for msg in self.message_queue:
+            #pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM0", file=sys.stdout)
+            pbar = tqdm(total=len(self._messages), ncols=80, mininterval=1, unit=' messages', desc="FSM0", file=sys.stdout)
+        #for msg in self.message_queue:
+        for i, msg in self._messages.iterrows():
             self.nsvec['msg'] = msg
             self.nsvec = self.startstopHandler.call_trigger_states(self.nsvec)
             self.nsvec = self.serviceSelectorHandler.call_trigger_states(self.nsvec)
@@ -685,19 +680,18 @@ class FSMOperator:
         self.nsvec = vecstore # restore statevector
 
         # merge original and extra messages, sortbmessaged,  make sure timing is monoton upwards
-        self.debug_msg('extra messages before merge:',self.extra_messages, debug=debug)
-        self.message_queue, self.extra_messages = self.merge_extra_messages(self.message_queue, self.extra_messages)
-        self.debug_msg('extra messages after merge:',self.extra_messages, debug=debug)
+        #self.message_queue, self.extra_messages = self.merge_extra_messages(self.message_queue, self.extra_messages)
+        self._messages, self.extra_messages = self.merge_extra_messages(self._messages, self.extra_messages)
         if not silent:
             pbar.close() 
 
-        if os.path.exists(self.tempfn):
-            os.remove(self.tempfn)
-        pd.DataFrame(self.message_queue).reset_index().to_feather(self.tempfn)
+        #if os.path.exists(self.tempfn):
+        #    os.remove(self.tempfn)
+        #pd.DataFrame(self.message_queue).reset_index().to_feather(self.tempfn)
 
-        del(self._messages)
-        del(self.message_queue)
-        gc.collect()                    
+        #del(self._messages)
+        #del(self.message_queue)
+        #gc.collect()                    
 
 ####################################
 ### Finite State Machine |     Run 1
@@ -723,7 +717,7 @@ class FSMOperator:
         """        
         self.startstopHandler.set_successtime(successtime)
 
-        self._messages = pd.read_feather(self.tempfn)
+        #self._messages = pd.read_feather(self.tempfn)
 
         # if not silent:
         #     pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM1", file=sys.stdout)
@@ -739,7 +733,7 @@ class FSMOperator:
             # log Statesvector details
             # TODO: store in a file, in a huge result struchture
             # TODO: retrieve by seeking this file when needed.
-            # self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
+            self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
 
             # collect & harvest data:
             self.run1_collect_data(self.nsvec, self.results)
@@ -749,8 +743,8 @@ class FSMOperator:
         if not silent:
             pbar.close()
 
-        del(self._messages)
-        gc.collect()
+        #del(self._messages)
+        #gc.collect()
 
 ####################################
 ### Finite State Machine |     Run 2
