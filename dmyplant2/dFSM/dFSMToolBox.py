@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 from .dFSMData import load_data
 
+def msg_smalltxt(msg):
+    return f"{msg['severity']} {pd.to_datetime(int(msg['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')}  {msg['name']} {msg['message']}"
+
 class Start_Data_Collector:
     def __init__(self, phases):
         self._vset = []

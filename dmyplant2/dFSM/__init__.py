@@ -10,7 +10,8 @@ from .dFSMToolBox import (
     get_size,
     loadramp_edge_detect,
     xwhere,
-    xwhere2
+    xwhere2,
+    msg_smalltxt
 )
 from .dFSMResults import (
     disp_result ,

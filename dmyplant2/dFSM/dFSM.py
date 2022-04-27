@@ -13,7 +13,7 @@ import dmyplant2
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from .dFSMToolBox import Target_load_Collector, Exhaust_temp_Collector, Tecjet_Collector, Sync_Current_Collector ,load_data
+from .dFSMToolBox import Target_load_Collector, Exhaust_temp_Collector, Tecjet_Collector, Sync_Current_Collector ,load_data, msg_smalltxt
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -72,14 +72,15 @@ class State:
         return self._statename
 
     def trigger_on_vector(self, vector, msg):
+        #logging.info(f"State{'*' if self._trigger else ' '}{self._statename:18},trigger_on_vector_base enter,{vector},{msg_smalltxt(msg)}")
         vector.currentstate = self.checkmsg(msg)
         vector.statechange = self._trigger #???
         if self._trigger:
             vector.laststate = self._statename
             vector.laststate_start = vector.currentstate_start
             vector.currentstate_start = pd.to_datetime(msg['timestamp'] * 1e6)
+        #logging.info(f"State{'*' if self._trigger else ' '}{self._statename:18},trigger_on_vector_base  exit,{vector},{msg_smalltxt(msg)}")
         return vector
-
 
 class LoadrampStateV2(State):
     """Inherits State and provides a calulated end of the loadramp
@@ -93,29 +94,35 @@ class LoadrampStateV2(State):
         self._operator = operator
         self._full_load_timestamp = None
         self._loadramp = self._e['rP_Ramp_Set'] or 0.625 # %/sec
-        self._default_ramp_duration = 100.0 / self._loadramp
+        self._default_ramp_duration = (100.0 - e.sync_load) / self._loadramp
         super().__init__(statename, transferfun_list)
+        logging.info(f"in init - loadramp: {self._loadramp:5.1f}, duration {self._default_ramp_duration:5.1f}, timestamp {str(self._full_load_timestamp):15}")
 
     def trigger_on_vector(self, vector, msg):
         vector = super().trigger_on_vector(vector, msg)
+        logging.info(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'trigger_on_vector':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(msg)}")
         # calculate the end of ramp time if it isnt defined.
         if self._full_load_timestamp == None:
             self._full_load_timestamp = int((vector.currentstate_start.timestamp() + self._default_ramp_duration) * 1e3)
             #self._operator.inject_message({'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600})
-            new_msg = copy.deepcopy(msg)
-            new_msg['name'] = '9047'
-            new_msg['message'] = 'Target load reached (calculated)'
-            new_msg['timestamp'] = self._full_load_timestamp
-            new_msg['severity'] = 600
-            logging.info(f"loadramp: {self._loadramp:5.1f}, duration {self._default_ramp_duration:5.1f}, timestamp {self._full_load_timestamp},{vector},{self._operator.msg_smalltxt(msg)}")
-            self._operator.inject_message(new_msg)
+            if self._operator.act_run == 0: # bei run 0 eine neue message erzeugen.
+                new_msg = copy.deepcopy(msg)
+                new_msg['name'] = '9047'
+                new_msg['message'] = 'Target load reached (calculated)'
+                new_msg['timestamp'] = self._full_load_timestamp
+                new_msg['severity'] = 600
+                self._operator.inject_message(new_msg)
+                logging.info(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> inject +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(new_msg)}")
 
         # use the message target load reached to make the trigger more accurate. (This message isnt available on all engines.)
         if msg['name'] == '9047':
-            self._full_load_timestamp = msg['timestamp']
-            self._operator.replace_message(msg)
+            if self._operator.act_run == 0:
+                self._full_load_timestamp = msg['timestamp']
+                self._operator.replace_message(msg)
+                logging.info(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> replace +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{self._operator.msg_smalltxt(msg)}")
 
         if vector.statechange:
+            logging.info(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> normal statechange':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{self._operator.msg_smalltxt(msg)}")
             self._full_load_timestamp = None
 
         return vector
@@ -378,8 +385,9 @@ class startstopFSM(FSM):
                     'targetload': np.nan,
                     'ramprate': np.nan
                 })
-                results['starts_counter'] += 1 # index for next start
+                logging.info(f"{self._operator.act_run} SNO{self._operator.nsvec['startno'] - 1:5d}")
                 nsvec['startno'] = results['starts_counter']
+                results['starts_counter'] += 1 # index for next start
                 nsvec['in_operation'] = 'on'
 
             # do while 'on' in all states
@@ -437,25 +445,13 @@ class startstopFSM(FSM):
                     'warnings':[]
                 })
 
-            # _logline= {
-            #     'laststate': nsvec[self.name].laststate,
-            #     'laststate_start': nsvec[self.name].laststate_start,
-            #     'msg': nsvec['msg']['name'] + ' ' + nsvec['msg']['message'],
-            #     'currenstate': nsvec[self.name].currentstate,
-            #     'currentstate_start': nsvec[self.name].currentstate_start,
-            #     'starts': len(results['starts']),
-            #     'Successful_starts': len([s for s in results['starts'] if s['success']]),
-            #     'operation': nsvec['in_operation'],
-            #     'mode': nsvec['service_selector'],
-            # }
-            # results['runlog'].append(_logline)
-
 class FSMOperator:
     def __init__(self, e, p_from = None, p_to=None, skip_days=None, frompickle='NOTIMPLEMENTED'):
         self._e = e
         self.load_messages(e, p_from, p_to, skip_days)
         self.message_queue = []
         self.extra_messages = []
+        self.act_run = 0
 
         #register statehandlers
         #TODO: wite a registering interface so that all implementation steps
@@ -631,27 +627,6 @@ class FSMOperator:
         log = [makestr(x) for x in log if ((x['timestamp'] >= ts_start) and (x['timestamp'] <= ts_end))]
         return log
     
-    #def runlogdetail(self, startversuch, statechanges_only = False):
-        # def makestr(x):
-        #     return  f"{'*' if x[self.startstopHandler.name].statechange else '':2}|"+ \
-        #             f"{x['startno']:04}| " + \
-        #             f"LST {x[self.startstopHandler.name].laststate_start.strftime('%d.%m %H:%M:%S')} " + \
-        #             f"LS  {x[self.startstopHandler.name].laststate:18}| " + \
-        #             f"CSS {x[self.startstopHandler.name].currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
-        #             f"CS  {x[self.startstopHandler.name].currentstate:18}| " + \
-        #             f"{x['in_operation']:4}| " + \
-        #             f"{x['service_selector']:6}| " + \
-        #             f"{x['msg']['severity']} {pd.to_datetime(int(x['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} {x['msg']['name']} {x['msg']['message']}"
-        # ts_start = startversuch['starttime'].timestamp() * 1e3
-        # ts_end = startversuch['endtime'].timestamp() * 1e3
-        # if statechanges_only:
-        #     #log = [x for x in self.results['runlogdetail'] if x.statechange]
-        #     log = [x for x in self.results['runlogdetail'] if x[self.startstopHandler.name].statechange]
-        # else:
-        #     log = [x for x in self.results['runlogdetail']]
-        # log = [makestr(x) for x in log if ((x['msg']['timestamp'] >= ts_start) and (x['msg']['timestamp'] <= ts_end))]
-        # return log
-
     def detaillog(self, fsm_name, vec):
         d = dict(
             statechange = vec[fsm_name].statechange,
@@ -667,7 +642,7 @@ class FSMOperator:
         d['timestamp'] = vec['msg']['timestamp']
         d['name'] = vec['msg']['name']
         d['message'] = vec['msg']['message']
-        d['startno'] = vec['startno']
+        d['startno'] = vec['startno'] - 1
         return d
 
 ####################################
@@ -704,9 +679,9 @@ class FSMOperator:
             tuple: (messages_queue, extra_messages)
         """
         emc = extra_messages.copy()
-        max_timestamp = max([ts['timestamp'] for ts in messages_queue])
+        max_timestamp = max([ts['timestamp'] for ts in messages_queue]) # check latest timestamp in cycle
         for m in emc:
-            if m['timestamp'] < max_timestamp:
+            if m['timestamp'] < max_timestamp: # only insert messages if they are not later than latess timestamp in cycle!
                 messages_queue.append(m)
                 extra_messages.remove(m)
         messages_queue.sort(key=lambda x: x['timestamp'], reverse=False)
@@ -723,6 +698,8 @@ class FSMOperator:
         if len(self.results['starts']) == 0 or enforce:
             self.init_results()            
         self.message_queue = [m for i,m in self._messages.iterrows()]
+        self.act_run = 0
+        fsm0_starts_counter = 0
 
         vecstore = copy.deepcopy(self.nsvec) # store statevector
         if not silent:
@@ -732,6 +709,12 @@ class FSMOperator:
             self.nsvec = self.startstopHandler.call_trigger_states(self.nsvec)
             self.nsvec = self.serviceSelectorHandler.call_trigger_states(self.nsvec)
             self.nsvec = self.oilpumpHandler.call_trigger_states(self.nsvec)
+
+            if self.nsvec[self.startstopHandler.name].statechange:
+                if self.nsvec[self.startstopHandler.name].currentstate == 'startpreparation':
+                    self.nsvec['startno'] = fsm0_starts_counter
+                    fsm0_starts_counter += 1
+                    logging.info(f"{self.act_run} SNO{self.nsvec['startno']:5d}")
             if not silent:
                 pbar.update()
         self.nsvec = vecstore # restore statevector
@@ -773,6 +756,7 @@ class FSMOperator:
             silent (bool, optional): do not show progress bar if True. Defaults to False.
             successtime (int, optional): How long an operation cycle needs to stay in state targetoperation to be assessed successful. Defaults to 300.
         """        
+        self.act_run = 1
         self.startstopHandler.set_successtime(successtime)
 
         self._messages = pd.read_feather(self.tempfn)
@@ -837,6 +821,7 @@ class FSMOperator:
 
         silent (Boolean): whether a progress bar is visible or not. 
         """
+        self.act_run = 2
         self.run2_collectors_setup()
         self.results['run2_failed'] = []
 

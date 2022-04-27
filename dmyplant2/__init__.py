@@ -47,4 +47,5 @@ from dmyplant2.dFSM import (
     loadramp_edge_detect,
     xwhere,
     xwhere2,
+    msg_smalltxt,
     figures)
