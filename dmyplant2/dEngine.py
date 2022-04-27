@@ -264,7 +264,7 @@ class Engine:
                     del(self.ldata)
                     gc.collect()
                 except Exception as err:
-                    print(str(err))
+                    print('Engine load: no ldata in init')
 
                 # with open(self._picklefile, 'rb') as handle:
                 #     self.__dict__ = pickle.load(handle)

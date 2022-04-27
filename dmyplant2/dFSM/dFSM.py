@@ -292,6 +292,7 @@ class startstopFSM(FSM):
                     ]),
                 'coolrun': State('coolrun',[
                     { 'trigger':'1234 Operation off', 'new-state':'runout'},
+                    { 'trigger':'1231 Request module on', 'new-state':'idle'},
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'}
                     ]),
                 'runout': State('runout',[
@@ -611,24 +612,62 @@ class FSMOperator:
 
     def runlogdetail(self, startversuch, statechanges_only = False):
         def makestr(x):
-            return  f"{'*' if x[self.startstopHandler.name].statechange else '':2}|"+ \
+            return  f"{'*' if x['statechange'] else '':2}|"+ \
                     f"{x['startno']:04}| " + \
-                    f"LST {x[self.startstopHandler.name].laststate_start.strftime('%d.%m %H:%M:%S')} " + \
-                    f"LS  {x[self.startstopHandler.name].laststate:18}| " + \
-                    f"CSS {x[self.startstopHandler.name].currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
-                    f"CS  {x[self.startstopHandler.name].currentstate:18}| " + \
+                    f"LST {x['laststate_start']} " + \
+                    f"LS  {x['laststate']:18}| " + \
+                    f"CSS {x['currentstate_start']} " + \
+                    f"CS  {x['currentstate']:18}| " + \
                     f"{x['in_operation']:4}| " + \
                     f"{x['service_selector']:6}| " + \
-                    f"{x['msg']['severity']} {pd.to_datetime(int(x['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} {x['msg']['name']} {x['msg']['message']}"
+                    f"{x['severity']} {pd.to_datetime(int(x['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} {x['name']} {x['message']}"
         ts_start = startversuch['starttime'].timestamp() * 1e3
         ts_end = startversuch['endtime'].timestamp() * 1e3
         if statechanges_only:
-            #log = [x for x in self.results['runlogdetail'] if x.statechange]
-            log = [x for x in self.results['runlogdetail'] if x[self.startstopHandler.name].statechange]
+            log = [x for x in self.results['runlogdetail'] if x['statechange']]
         else:
             log = [x for x in self.results['runlogdetail']]
-        log = [makestr(x) for x in log if ((x['msg']['timestamp'] >= ts_start) and (x['msg']['timestamp'] <= ts_end))]
+        log = [makestr(x) for x in log if ((x['timestamp'] >= ts_start) and (x['timestamp'] <= ts_end))]
         return log
+    
+    #def runlogdetail(self, startversuch, statechanges_only = False):
+        # def makestr(x):
+        #     return  f"{'*' if x[self.startstopHandler.name].statechange else '':2}|"+ \
+        #             f"{x['startno']:04}| " + \
+        #             f"LST {x[self.startstopHandler.name].laststate_start.strftime('%d.%m %H:%M:%S')} " + \
+        #             f"LS  {x[self.startstopHandler.name].laststate:18}| " + \
+        #             f"CSS {x[self.startstopHandler.name].currentstate_start.strftime('%d.%m %H:%M:%S')} " + \
+        #             f"CS  {x[self.startstopHandler.name].currentstate:18}| " + \
+        #             f"{x['in_operation']:4}| " + \
+        #             f"{x['service_selector']:6}| " + \
+        #             f"{x['msg']['severity']} {pd.to_datetime(int(x['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} {x['msg']['name']} {x['msg']['message']}"
+        # ts_start = startversuch['starttime'].timestamp() * 1e3
+        # ts_end = startversuch['endtime'].timestamp() * 1e3
+        # if statechanges_only:
+        #     #log = [x for x in self.results['runlogdetail'] if x.statechange]
+        #     log = [x for x in self.results['runlogdetail'] if x[self.startstopHandler.name].statechange]
+        # else:
+        #     log = [x for x in self.results['runlogdetail']]
+        # log = [makestr(x) for x in log if ((x['msg']['timestamp'] >= ts_start) and (x['msg']['timestamp'] <= ts_end))]
+        # return log
+
+    def detaillog(self, fsm_name, vec):
+        d = dict(
+            statechange = vec[fsm_name].statechange,
+            laststate = vec[fsm_name].laststate,
+            laststate_start = vec[fsm_name].laststate_start.strftime('%d.%m %H:%M:%S'),
+            currentstate = vec[fsm_name].currentstate,
+            currentstate_start = vec[fsm_name].currentstate_start.strftime('%d.%m %H:%M:%S')
+        )
+        for k in vec.keys():
+            if isinstance(vec[k],str):
+                d.update({k:vec[k]})
+        d['severity'] = vec['msg']['severity']
+        d['timestamp'] = vec['msg']['timestamp']
+        d['name'] = vec['msg']['name']
+        d['message'] = vec['msg']['message']
+        d['startno'] = vec['startno']
+        return d
 
 ####################################
 ### Finite State Machine |     Run 0
@@ -751,7 +790,8 @@ class FSMOperator:
             # log Statesvector details
             # TODO: store in a file, in a huge result struchture
             # TODO: retrieve by seeking this file when needed.
-            self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
+            #self.results['runlogdetail'].append(copy.deepcopy(self.nsvec))
+            self.results['runlogdetail'].append(self.detaillog(self.startstopHandler.name,self.nsvec))
 
             # collect & harvest data:
             self.run1_collect_data(self.nsvec, self.results)
