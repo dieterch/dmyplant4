@@ -107,6 +107,7 @@ class LoadrampStateV2(State):
             new_msg['message'] = 'Target load reached (calculated)'
             new_msg['timestamp'] = self._full_load_timestamp
             new_msg['severity'] = 600
+            logging.info(f"loadramp: {self._loadramp:5.1f}, duration {self._default_ramp_duration:5.1f}, timestamp {self._full_load_timestamp},{vector},{self._operator.msg_smalltxt(msg)}")
             self._operator.inject_message(new_msg)
 
         # use the message target load reached to make the trigger more accurate. (This message isnt available on all engines.)
