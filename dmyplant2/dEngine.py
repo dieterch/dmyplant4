@@ -1617,6 +1617,11 @@ class Engine:
         # return self.get_dataItem('Para_Speed_Nominal')
 
     @ property
+    def sync_load(self):
+        # % of nominal load
+        return 10.0
+
+    @ property
     def BMEP(self):
         return np.around(1200.0 * self.Pmech_nominal / (self.engvol * self.Speed_nominal), decimals=1)
 
