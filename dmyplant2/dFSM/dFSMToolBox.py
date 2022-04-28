@@ -19,6 +19,9 @@ class Start_Data_Collector:
         if ok:
             self.start = startversuch['startstoptiming'][phases[0]][0]['start'].timestamp()
             self.end = startversuch['startstoptiming'][phases[-1]][0]['end'].timestamp()
+        else:
+            self.start = None
+            self.end = None
         return ok
 
     def cut_data(self, startversuch, data, phases):
