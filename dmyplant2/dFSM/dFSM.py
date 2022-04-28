@@ -244,7 +244,7 @@ class ServiceSelectorFSM(FSM):
 ###########################################################################################
 class startstopFSM(FSM):
     # useful abbrevations
-    run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','targetoperation','rampdown','coolrun','runout','A', 'W']
+    run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','maxload','targetoperation','rampdown','coolrun','runout','A', 'W']
     vertical_lines_times = ['startpreparation','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
     start_timing_states =  ['startpreparation','starter','speedup','idle','synchronize','loadramp']
     
@@ -383,7 +383,8 @@ class startstopFSM(FSM):
                     'alarms': [],
                     'warnings': [],
                     'targetload': np.nan,
-                    'ramprate': np.nan
+                    'ramprate': np.nan,
+                    'maxload': np.nan
                 })
                 logging.info(f"{self._operator.act_run} SNO{self._operator.nsvec['startno'] - 1:5d}")
                 nsvec['startno'] = results['starts_counter']

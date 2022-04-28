@@ -80,6 +80,7 @@ class Target_load_Collector(Start_Data_Collector):
         if 'loadramp' in startversuch['startstoptiming']:
             if not data.empty:
                 try:
+                    maxload = data['Power_PowerAct'].max()
                     xmax, ymax = self.left_upper_edge('Power_PowerAct', data, self.helplinefactor, xmax, ymax)
                 except Exception as err:
                     # Berechnung sAbbrechen
@@ -97,6 +98,7 @@ class Target_load_Collector(Start_Data_Collector):
                 results['starts'][sno]['startstoptiming']['targetoperation'][0]['start'] = xmax
             results['starts'][sno]['targetload'] = ymax
             results['starts'][sno]['ramprate'] = ramprate / self.ratedload * 100.0
+            results['starts'][sno]['maxload'] = maxload
         return results
 
     def register(self,startversuch,vset=[],tfrom=None,tto=None):
@@ -116,6 +118,8 @@ class Exhaust_temp_Collector(Start_Data_Collector):
         tdata = self.cut_data(startversuch, data, self._phases)
         res = { k:np.nan for k in self._content } # initialize results
         if not tdata.empty:
+            tdata['spread'] = tdata['Exhaust_TempCylMax'] - tdata['Exhaust_TempCylMin']
+            spreadmax = tdata['spread'].max()
             point = tdata['Exhaust_TempCylMax'].idxmax()
             if point == point: # test for not NaN
                 datapoint = tdata.loc[point]
@@ -125,6 +129,7 @@ class Exhaust_temp_Collector(Start_Data_Collector):
                 tpow  = tdata.at[datapoint.name,'Power_PowerAct']
                 res = {
                         'ExhTempCylMax':tmax,
+                        'ExhSpreadMax':spreadmax,
                         'ExhSpread_at_Max': tspread,  
                         'Power_at_ExhTempCylMax': tpow
                     }
