@@ -261,11 +261,11 @@ class Engine:
             else:
                 if self.ldata is not None:
                     self.__dict__ = self.ldata
-                    try:
-                        del(self.ldata)
-                        gc.collect()
-                    except Exception as err:
-                        print('Engine load from picklefile: error disposing ldata')
+                    #try:
+                    #    del(self.ldata)
+                    #    gc.collect()
+                    #except Exception as err:
+                    #    print('Engine load from picklefile: error disposing ldata')
 
                 # with open(self._picklefile, 'rb') as handle:
                 #     self.__dict__ = pickle.load(handle)

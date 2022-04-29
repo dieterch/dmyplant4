@@ -544,7 +544,8 @@ class FSMOperator:
                 save_date = pd.to_datetime('today').normalize(),
                 p_from = self._p_from,
                 p_to = self._p_to,
-                run2 = all(self.starts['run2'])
+                run2 = all(self.starts['run2']),
+                starts = len(self.starts)
             )
             self.results['info'].update(self._e.description)
             with open(filename, 'wb') as handle:
@@ -557,10 +558,13 @@ class FSMOperator:
         if os.path.exists(filename):
             with open(filename, 'rb') as handle:
                 results = pickle.load(handle)
-                pp(results['info'])
+                #pp(results['info'])
                 e = Engine.from_sn(mp, results['info']['serialNumber'])
-                lfsm = FSMOperator(e, p_from=results['info']['p_from'], p_to=results['info']['p_from'])
+                lfsm = cls(e, p_from=results['info']['p_from'], p_to=results['info']['p_to'])
+                lfsm.results = results
                 return lfsm
+        else:
+            raise FileNotFoundError(filename)
 
     @property        
     def exists(self):
