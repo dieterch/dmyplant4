@@ -13,6 +13,8 @@ import dmyplant2
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+
+from dmyplant2.dEngine import Engine
 from .dFSMToolBox import Target_load_Collector, Exhaust_temp_Collector, Tecjet_Collector, Sync_Current_Collector ,load_data, msg_smalltxt
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -449,6 +451,8 @@ class startstopFSM(FSM):
 class FSMOperator:
     def __init__(self, e, p_from = None, p_to=None, skip_days=None, frompickle='NOTIMPLEMENTED'):
         self._e = e
+        self._p_from = p_from
+        self._p_to = p_to
         self.load_messages(e, p_from, p_to, skip_days)
         self.message_queue = []
         self.extra_messages = []
@@ -532,6 +536,31 @@ class FSMOperator:
     def unstore(self):
         if self.exists:
             os.remove(self.pfn)
+
+    def save_results(self, filename):
+        if len(self.starts) > 0:
+            self.unstore()
+            self.results['info'] = dict(
+                save_date = pd.to_datetime('today').normalize(),
+                p_from = self._p_from,
+                p_to = self._p_to,
+                run2 = all(self.starts['run2'])
+            )
+            self.results['info'].update(self._e.description)
+            with open(filename, 'wb') as handle:
+                pickle.dump(self.results, handle, protocol=5)
+        else:
+            print('no results to save.')        
+
+    @classmethod
+    def load_results(cls, mp, filename):
+        if os.path.exists(filename):
+            with open(filename, 'rb') as handle:
+                results = pickle.load(handle)
+                pp(results['info'])
+                e = Engine.from_sn(mp, results['info']['serialNumber'])
+                lfsm = FSMOperator(e, p_from=results['info']['p_from'], p_to=results['info']['p_from'])
+                return lfsm
 
     @property        
     def exists(self):

@@ -202,7 +202,7 @@ class Engine:
         #self._data_base = os.getcwd() + f'/data/{str(self._sn)}'
         if not os.path.exists(self._data_base):
             os.makedirs(self._data_base)
-        self._ldata = None        
+        #self._ldata = None        
         self._picklefile = self._fname + '.pkl'    # load persitant data
         self._infofile = self._fname + '.json'
         self._last_fetch_date = None
@@ -259,12 +259,13 @@ class Engine:
 
                 self._last_fetch_date = epoch_ts(datetime.now().timestamp())
             else:
-                self.__dict__ = self.ldata
-                try:
-                    del(self.ldata)
-                    gc.collect()
-                except Exception as err:
-                    print('Engine load: no ldata in init')
+                if self.ldata is not None:
+                    self.__dict__ = self.ldata
+                    try:
+                        del(self.ldata)
+                        gc.collect()
+                    except Exception as err:
+                        print('Engine load from picklefile: error disposing ldata')
 
                 # with open(self._picklefile, 'rb') as handle:
                 #     self.__dict__ = pickle.load(handle)
@@ -504,11 +505,12 @@ class Engine:
 
         try:
             with open(self._picklefile, 'wb') as handle:
-                try:
-                    del(self.ldata)
-                    gc.collect()
-                except Exception as err:
-                    print('Engine _save: cannot delete ldata before dump')
+                if self.ldata is not None:
+                    try:
+                        del(self.ldata)
+                        gc.collect()
+                    except Exception as err:
+                        print('Engine Save to pickle File: cannot dispose ldata before dump')
                 pickle.dump(self.__dict__, handle, protocol=4)
 
         except FileNotFoundError:
@@ -1653,6 +1655,16 @@ class Engine:
         _dash['LOC'] = self['RMD_ListBuffMAvgOilConsume_OilConsumption']
         return _dash
 
+    @ property
+    def description(self):
+        return dict(
+            Name = self['Validation Engine'],
+            DesignNumber = self['Design Number'],
+            EngineType = self['Engine Type'],
+            EngineVersion = self['Engine Version'],
+            serialNumber = self['serialNumber'],
+            id = self['id']
+        )
 
 if __name__ == "__main__":
 
