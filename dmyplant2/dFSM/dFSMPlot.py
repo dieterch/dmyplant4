@@ -59,18 +59,14 @@ def FSM_add_Notations(fig,fsm,startversuch, sync_load=10):
         FSM_VLine(
             fig, txt=f"{lines[k]['time'].strftime('%Y-%m-%d %H:%M:%S')} | {k.upper()} | {lines[k]['duration']:0.2f}", 
             x_pos=lines[k]['time'], y_pos=2, color='red', line='solid', alpha=0.4)
-        # fig.add_layout(Span(location=lines[k]['time'],dimension='height', line_color='red', line_dash='solid', line_alpha=0.4))
-        # fig.add_layout(Label(x=lines[k]['time'], y=2, x_units='data',y_units='screen',angle=np.pi / 2,
-        #                     text_font_size='8pt', text_color ='darkslategray',text_alpha=0.8,render_mode='css',
-        #                     text=f"{lines[k]['time'].strftime('%Y-%m-%d %H:%M:%S')} | {k.upper()} | {lines[k]['duration']:0.2f}"))
 
     # Nominal Power as horizontal line
     fig.add_layout(Span(location=fsm._e['Power_PowerNominal'],dimension='width',x_range_name='default', y_range_name='0',line_color='green', line_dash='solid', line_alpha=0.4))
 
     # max load if available
     if 'maxload' in startversuch:
-        if startversuch['targetload'] == startversuch['targetload']:
-            fig.add_layout(Span(location=startversuch['targetload'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
+        if startversuch['maxload'] == startversuch['maxload']:
+            fig.add_layout(Span(location=startversuch['maxload'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
 
     # Nominal Speed as horizontal Line
     fig.add_layout(Span(location=fsm._e.Speed_nominal,dimension='width',x_range_name='default', y_range_name='1',line_color='blue', line_dash='solid', line_alpha=0.4)) 
@@ -106,30 +102,6 @@ def FSM_add_Warnings(fig,fsm,startversuch):
         FSM_VLine(fig, txt=f"{pd.to_datetime(int(wn['msg']['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')} | {wn['msg']['severity']} | {wn['msg']['name']} | {wn['msg']['message']}", 
             x_pos=wn['msg']['timestamp'], y_pos=2, color='red', line='dashed', alpha=0.4)
     return fig        
-
-# def FSMPlot_Start(fsm,startversuch, data, vset, dset, figsize=(16,10)):
-#     von_dt=pd.to_datetime(startversuch['starttime']); von=int(von_dt.timestamp())
-#     bis_dt=pd.to_datetime(startversuch['endtime']); bis=int(bis_dt.timestamp())
-
-#     ftitle = f"{fsm._e} ----- Start {startversuch['no']} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
-#     print(f"von: {von_dt.strftime('%d.%m.%Y %H:%M:%S')} bis: {bis_dt.strftime('%d.%m.%Y %H:%M:%S')}")
-
-#     al_lines = disp_alarms(startversuch)
-#     w_lines = disp_warnings(startversuch)
-    
-#     fig = dbokeh_chart(data, dset, title=ftitle, grid=False, figsize=figsize, style='line', line_width=0)
-
-#     add_dbokeh_vlines(al_lines,fig,line_color='red', line_dash='dashed', line_alpha=0.4, line_width=2)
-#     add_dbokeh_vlines(w_lines,fig,line_color='#d5ac13', line_dash='dashed', line_alpha=0.4, line_width=2)
-#     add_dbokeh_vlines(states_lines(startversuch),fig,line_color='red', line_dash='solid', line_alpha=0.4)
-                            
-#     fig.add_layout(Span(location=fsm._e['Power_PowerNominal'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
-#     if 'maxload' in startversuch:
-#         if startversuch['maxload'] == startversuch['maxload']:
-#             fig.add_layout(Span(location=startversuch['maxload'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
-#     fig.add_layout(Span(location=fsm._e.Speed_nominal,dimension='width',x_range_name='default', y_range_name='1',line_color='blue', line_dash='solid', line_alpha=0.4)) 
-
-#     return fig
 
 ## plotting
 def states_lines(startversuch):

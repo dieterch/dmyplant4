@@ -456,6 +456,7 @@ class FSMOperator:
         self.load_messages(e, p_from, p_to, skip_days)
         self.message_queue = []
         self.extra_messages = []
+        self.runs_completed = []
         self.act_run = 0
 
         #register statehandlers
@@ -763,10 +764,10 @@ class FSMOperator:
         if os.path.exists(self.tempfn):
             os.remove(self.tempfn)
         pd.DataFrame(self.message_queue).reset_index().to_feather(self.tempfn)
-
         del(self._messages)
         del(self.message_queue)
         gc.collect()                    
+        self.runs_completed.append(self.act_run)
 
 ####################################
 ### Finite State Machine |     Run 1
@@ -822,6 +823,8 @@ class FSMOperator:
 
         del(self._messages)
         gc.collect()
+        self.runs_completed.append(self.act_run)
+
 
 ####################################
 ### Finite State Machine |     Run 2
@@ -895,4 +898,4 @@ class FSMOperator:
                         
         if not silent:
             pbar.close()
-
+        self.runs_completed.append(self.act_run)
