@@ -103,6 +103,19 @@ class LoadrampStateV2(State):
     def trigger_on_vector(self, vector, msg):
         vector = super().trigger_on_vector(vector, msg)
         logging.info(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'trigger_on_vector':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(msg)}")
+
+        if self._full_load_timestamp is not None:
+            if msg['timestamp'] > int(self._full_load_timestamp + 2 * self._default_ramp_duration * 1e3): # Emergency, message times got most likely confused.
+                if self._operator.act_run == 1:
+                    new_msg = copy.deepcopy(msg)
+                    new_msg['name'] = '9047'
+                    new_msg['message'] = 'Target load reached (emergency)'
+                    new_msg['timestamp'] = msg['timestamp']
+                    new_msg['severity'] = 600
+                    logging.info(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> emergency +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(new_msg)}")
+                    vector.statechange = True
+                    return vector #emergency exit
+
         # calculate the end of ramp time if it isnt defined.
         if self._full_load_timestamp == None:
             self._full_load_timestamp = int((vector.currentstate_start.timestamp() + self._default_ramp_duration) * 1e3)
@@ -287,12 +300,14 @@ class startstopFSM(FSM):
                 'loadramp': LoadrampStateV2('loadramp',[
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'},
                     { 'trigger':'1232 Request module off', 'new-state':'rampdown'}, # lead to an error at Bautzen ???
+                    { 'trigger':'1225 Service selector switch Off', 'new-state': 'standstill'},
                     #{ 'trigger':'Calculated statechange', 'new-state':'targetoperation'}, #enable with run1 & LoadrampState
                     { 'trigger':'9047 Target load reached', 'new-state':'targetoperation'},#enable with run1, enable with run1V2 & LoadrampStateV2
                     ], operator, e),             
                 'targetoperation': State('targetoperation',[
                     { 'trigger':'1232 Request module off', 'new-state':'rampdown'},
                     #{ 'trigger':'1239 Group alarm - shut down', 'new-state':'rampdown'},
+                    { 'trigger':'1225 Service selector switch Off', 'new-state': 'standstill'},
                     { 'trigger':'1236 Generator CB opened', 'new-state':'idle'},
                     ]),
                 'rampdown': State('rampdown',[
