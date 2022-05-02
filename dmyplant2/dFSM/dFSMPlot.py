@@ -18,7 +18,7 @@ def FSM_splot(fsm,startversuch, data, dset, title=None, legend=True, figsize=(16
     bis_dt=pd.to_datetime(startversuch['endtime']); bis=int(bis_dt.timestamp())
 
     #ftitle = f"{fsm._e} ----- Start {startversuch['no']} {startversuch['mode']} | {'SUCCESS' if startversuch['success'] else 'FAILED'} | {startversuch['starttime'].round('S')}"
-    print(f"von: {von_dt.strftime('%d.%m.%Y %H:%M:%S')} bis: {bis_dt.strftime('%d.%m.%Y %H:%M:%S')}")
+    #print(f"von: {von_dt.strftime('%d.%m.%Y %H:%M:%S')} bis: {bis_dt.strftime('%d.%m.%Y %H:%M:%S')}")
 
     fig = dbokeh_chart(data, dset, title=title, grid=False, legend=legend, figsize=figsize, style='line', line_width=0)
     return fig
