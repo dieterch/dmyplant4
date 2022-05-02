@@ -747,14 +747,18 @@ class FSMOperator:
 
         if len(self.results['starts']) == 0 or enforce:
             self.init_results()            
-        self.message_queue = [m for i,m in self._messages.iterrows()]
+        #self.message_queue = [m for i,m in self._messages.iterrows()]
+        self.message_queue = []
         self.act_run = 0
         fsm0_starts_counter = 0
 
         vecstore = copy.deepcopy(self.nsvec) # store statevector
         if not silent:
-            pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM0", file=sys.stdout)
-        for msg in self.message_queue:
+            pbar = tqdm(total=len(self._messages), ncols=80, mininterval=1, unit=' messages', desc="FSM0", file=sys.stdout)
+           #pbar = tqdm(total=len(self.message_queue), ncols=80, mininterval=1, unit=' messages', desc="FSM0", file=sys.stdout)
+        #for msg in self.message_queue:
+        for i, msg in self._messages.iterrows():
+            self.message_queue.append(msg)
             self.nsvec['msg'] = msg
             self.nsvec = self.startstopHandler.call_trigger_states(self.nsvec)
             self.nsvec = self.serviceSelectorHandler.call_trigger_states(self.nsvec)
