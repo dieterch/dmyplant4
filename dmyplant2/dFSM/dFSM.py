@@ -303,7 +303,7 @@ class startstopFSM(FSM):
                 'loadramp': LoadrampStateV2('loadramp',[
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'},
                     { 'trigger':'1232 Request module off', 'new-state':'rampdown'}, # lead to an error at Bautzen ???
-                    { 'trigger':'1225 Service selector switch Off', 'new-state': 'standstill'},
+                    #{ 'trigger':'1225 Service selector switch Off', 'new-state': 'standstill'}, # Egg Gera 1.3.2019 => did not lead to engine stop
                     #{ 'trigger':'Calculated statechange', 'new-state':'targetoperation'}, #enable with run1 & LoadrampState
                     { 'trigger':'9047 Target load reached', 'new-state':'targetoperation'},#enable with run1, enable with run1V2 & LoadrampStateV2
                     ], operator, e),             
