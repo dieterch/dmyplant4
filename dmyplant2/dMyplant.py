@@ -274,7 +274,7 @@ class MyPlant:
                     response = self._session.post(burl + "/auth",
                                                   data=json.dumps(body), headers=headers)
                     if response.status_code == 200:
-                        logging.debug(f'login {self._name} successful.')
+                        logging.debug(f'login {self.deBase64(self._name)} successful.')
                         #self.r = response.json()
                         self._token = response.json()['token']
                         self._appuser_token = self._token
