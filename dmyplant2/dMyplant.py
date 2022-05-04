@@ -239,7 +239,7 @@ class MyPlant:
                     asset = mp._asset_data(dval['serialNumber'].iloc[i]) #get assetId from Serial Number
                     assetId=asset['properties'][0]['assetId']
                     itemIds={161: ['CountOph', 'h'], 179: ['Starts', '']}
-                    p_from=arrow.get(dval['val start'].iloc[i])
+                    p_from=arrow.get(dval['val start'].iloc[i]).to('Europe/Vienna')
                     p_to=p_from.shift(days=1)
                     add_data=mp.hist_data(assetId, itemIds, p_from, p_to, timeCycle=3600)
                     if add_data.empty:

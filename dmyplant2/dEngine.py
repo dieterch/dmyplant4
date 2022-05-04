@@ -234,7 +234,7 @@ class Engine:
                 #local_asset = self._mp._asset_data_graphQL(self._id)
 
                 #logging.debug(f"{temp.eng['Validation Engine']}, Engine Data fetched from Myplant")
-                logging.debug(f"{name}, Engine Data fetched from Myplant")
+                logging.debug(f"dmyplant2.dEngine: {name}, Engine Data fetched from Myplant")
                 #local_asset['validation'] = temp.eng
                 local_val = Engine.lookup_Installed_Fleet(self._mp, self._sn)
                 local_val.update({  
@@ -272,9 +272,9 @@ class Engine:
         except FileNotFoundError:
             logging.debug(
                 f"{self._picklefile} not found, fetch Data from MyPlant Server")
-        else:
-            logging.debug(
-                f"{__name__}: in cache mode, load data from {self._sn}.pkl")
+        # else:
+        #     logging.debug(
+        #         f"{__name__}: in cache mode, load data from {self._sn}.pkl")
         finally:
             logging.debug(
                 f"Initialize Engine Object, SerialNumber: {self._sn}")
@@ -420,11 +420,11 @@ class Engine:
         # this function uses the myplant reported hours and the
         # request time to calculate the inperpolation
         # for low validation oph this gives more consistent results
-        if (arrow.now().timestamp() - self.valstart_ts) == 0:
+        if (arrow.now().to('Europe/Vienna').timestamp() - self.valstart_ts) == 0:
             self._k = 0
         else:
             self._k2 = float(self['oph_parts'] /
-                            (arrow.now().timestamp() - self.valstart_ts))
+                            (arrow.now().to('Europe/Vienna').timestamp() - self.valstart_ts))
 
     def oph(self, ts):
         """Interpolated Operating hours
@@ -704,7 +704,7 @@ class Engine:
             df, np_from = check_and_loadfile(p_from, fn, forceReload)
 
             tol = 1 # x sec Toleranz
-            np_to = arrow.get(p_to).shift(seconds=-timeCycle)
+            np_to = arrow.get(p_to).to('Europe/Vienna').shift(seconds=-timeCycle)
             if np_from.to('Europe/Vienna').shift(seconds=tol) < np_to.to('Europe/Vienna'):
                 ndf = self._mp.hist_data(
                     self['id'], itemIds, np_from, p_to, timeCycle, silent=silent)
@@ -805,7 +805,7 @@ class Engine:
             df, np_from, itemIds = check_and_loadfile(p_from, fn, itemIds, forceReload)
 
             tol = 1 # x sec Toleranz
-            np_to = arrow.get(p_to).shift(seconds=-timeCycle)
+            np_to = arrow.get(p_to).to('Europe/Vienna').shift(seconds=-timeCycle)
             t0 = np_from.to('Europe/Vienna').shift(seconds=tol)
             t1 = np_to.to('Europe/Vienna')
             if np_from.to('Europe/Vienna').shift(seconds=tol)< np_to.to('Europe/Vienna'):
@@ -874,8 +874,8 @@ class Engine:
                 tt = r"&limit=" + str(p_limit)
             else:
                 if p_from and p_to:
-                    tt = r'&from=' + str(int(arrow.get(p_from).timestamp()) * 1000) + \
-                        r'&to=' + str(int(arrow.get(p_to).timestamp()) * 1000)
+                    tt = r'&from=' + str(int(arrow.get(p_from).to('Europe/Vienna').timestamp()) * 1000) + \
+                        r'&to=' + str(int(arrow.get(p_to).to('Europe/Vienna').timestamp()) * 1000)
                 else:
                     raise Exception(
                         r"batch_hist_dataItems, invalid Parameters")
@@ -1001,7 +1001,7 @@ class Engine:
                 itemIds=locdef, p_limit=limit, timeCycle=1)
             #dloc = add_column(dloc, 161)
             cnt = dloc['OilConsumption'].count()
-            DebugStr = f"Data Start {arrow.get(dloc.datetime.iloc[-1]).format('DD.MM.YYYY')}\nVal  Start {arrow.get(self.val_start).format('DD.MM.YYYY')}"
+            DebugStr = f"Data Start {arrow.get(dloc.datetime.iloc[-1]).to('Europe/Vienna').format('DD.MM.YYYY')}\nVal  Start {arrow.get(self.val_start).to('Europe/Vienna').format('DD.MM.YYYY')}"
             DebugStr = "LOC, all available data received,\n" + DebugStr if (cnt != limit) else f"limit={int(limit)},\n" + DebugStr
             print(DebugStr)
         except:
@@ -1103,7 +1103,7 @@ class Engine:
         for rep in reps:
             if len(reps) > 0:
                 loilStatus = rep
-                loilStatus['date'] = arrow.get(rep['dateTaken']).format('DD.MM.YYYY')
+                loilStatus['date'] = arrow.get(rep['dateTaken']).to('Europe/Vienna').format('DD.MM.YYYY')
                 loilStatus['unitHours_at_sample'] = loilStatus['unitHours'] # move unithours to historic unithours
                 loilStatus['unitHours'] = self['Count_OpHour'] # actual unithours
 
@@ -1286,8 +1286,8 @@ class Engine:
         """
         # messages consist of the following severities
         sev = [600,650,700,800]
-        p_from_ts = int(arrow.get(p_from).timestamp() * 1e3)
-        p_to_ts = int(arrow.get(p_to).timestamp() * 1e3)
+        p_from_ts = int(arrow.get(p_from).to('Europe/Vienna').timestamp() * 1e3)
+        p_to_ts = int(arrow.get(p_to).to('Europe/Vienna').timestamp() * 1e3)
 
         # if untilnow == False and p_to points to today ...
         # change p_to_ts to the day before 23:59.59 ...
@@ -1364,9 +1364,9 @@ class Engine:
 
         last_ts = int(messages.iloc[-1]['timestamp'])
         if p_to != None:
-            p_to_ts = int(arrow.get(p_to).timestamp() * 1e3)
+            p_to_ts = int(arrow.get(p_to).to('Europe/Vienna').timestamp() * 1e3)
         else:
-            p_to_ts = int(arrow.now().timestamp() * 1e3)
+            p_to_ts = int(arrow.now().to('Europe/Vienna').timestamp() * 1e3)
         if p_to_ts > last_ts: # not all messages are in the pkl file ...
             new_messages = self.batch_hist_alarms(p_from = last_ts, p_to = p_to_ts)
             if not new_messages.empty:
@@ -1378,7 +1378,7 @@ class Engine:
             messages = messages[messages['timestamp'] <= p_to_ts]
         
         if p_from != None:
-            p_from_ts = int(arrow.get(p_from).timestamp() * 1e3)
+            p_from_ts = int(arrow.get(p_from).to('Europe/Vienna').timestamp() * 1e3)
             messages = messages[messages['timestamp'] >= p_from_ts]
 
         return messages.reset_index()
@@ -1403,8 +1403,8 @@ class Engine:
                 r"&limit=" + str(p_limit)
         else:
             if p_from and p_to:
-                tt = r'&from=' + str(int(arrow.get(p_from).timestamp()) * 1000) + \
-                    r'&to=' + str(int(arrow.get(p_to).timestamp()) * 1000)
+                tt = r'&from=' + str(int(arrow.get(p_from).to('Europe/Vienna').timestamp()) * 1000) + \
+                    r'&to=' + str(int(arrow.get(p_to).to('Europe/Vienna').timestamp()) * 1000)
             else:
                 raise Exception(
                     r"batch_hist_alarms, invalid Parameters")
@@ -1459,7 +1459,7 @@ class Engine:
         as EPOCH timestamp
         e.g.: vs = e.valstart_ts
         """
-        return epoch_ts(arrow.get(self['val start']).timestamp())
+        return epoch_ts(arrow.get(self['val start']).to('Europe/Vienna').timestamp())
 
     def myplant_workbench_link(self, t_from, t_to, dset, linkname='link to Myplant Workbench', pre=5*60, post=21*60):
         t_from = int((pd.to_datetime(t_from).timestamp() - pre) * 1e3) 

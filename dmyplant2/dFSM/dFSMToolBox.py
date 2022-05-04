@@ -79,6 +79,9 @@ class Target_load_Collector(Start_Data_Collector):
         ymax = 0.0
         if 'loadramp' in startversuch['startstoptiming']:
             if not data.empty:
+                if data['Power_PowerAct'].min() > 0.05 * self.ratedload:   # removes false detected cases with constant load
+                    results['run2_failed'].append(startversuch)
+                    return results
                 try:
                     maxload = data['Power_PowerAct'].max()
                     xmax, ymax = self.left_upper_edge('Power_PowerAct', data, self.helplinefactor, xmax, ymax)
@@ -87,8 +90,11 @@ class Target_load_Collector(Start_Data_Collector):
                     results['run2_failed'].append(startversuch)
                     return results
             duration = xmax.timestamp() - self.start
+            if duration > 5 * startversuch['loadramp']:         # avoid cases, where no meaningful targetload reached can be found in the data
+                    results['run2_failed'].append(startversuch)
+                    return results                
             ramprate = ymax / duration
-            if  duration < 5: # constant load ?
+            if  duration < 5: # why this code , forgot the purpose?
                 xmax = startversuch['endtime']
                 ymax = 0.0
 

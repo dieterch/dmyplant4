@@ -5,6 +5,7 @@ import traceback
 import logging
 import os
 import sys
+import time
 import pickle
 import warnings
 from pprint import pprint as pp, pformat as pf
@@ -310,7 +311,7 @@ class startstopFSM(FSM):
                 'targetoperation': State('targetoperation',[
                     { 'trigger':'1232 Request module off', 'new-state':'rampdown'},
                     #{ 'trigger':'1239 Group alarm - shut down', 'new-state':'rampdown'},
-                    { 'trigger':'1225 Service selector switch Off', 'new-state': 'standstill'},
+                    #{ 'trigger':'1225 Service selector switch Off', 'new-state': 'standstill'},
                     { 'trigger':'1236 Generator CB opened', 'new-state':'idle'},
                     ]),
                 'rampdown': State('rampdown',[
@@ -476,6 +477,7 @@ class FSMOperator:
         self.extra_messages = []
         self.runs_completed = []
         self.act_run = 0
+        self.loglevel = logging.DEBUG
 
         #register statehandlers
         #TODO: wite a registering interface so that all implementation steps
@@ -790,6 +792,8 @@ class FSMOperator:
         del(self.message_queue)
         gc.collect()                    
         self.runs_completed.append(self.act_run)
+        logging.debug('Run 0 completed')
+
 
 ####################################
 ### Finite State Machine |     Run 1
@@ -845,6 +849,7 @@ class FSMOperator:
         del(self._messages)
         gc.collect()
         self.runs_completed.append(self.act_run)
+        logging.debug('Run 1 completed')
 
 
 ####################################
@@ -893,21 +898,24 @@ class FSMOperator:
                 try:
                     # collect dataItems & phases, align an load data in one request to myplant per Start. 
                     vset, tfrom, tto = self.run2_collectors_register(startversuch)
+                    t0 = time.time()
                     data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='_run2', debug=False)
-                    logging.debug(f"2 SNO{sno:5d} start: {startversuch['starttime']} to: {startversuch['endtime']}")
+                    t1 = time.time()
+                    logging.debug(f"2 SNO{sno:5d} start: {startversuch['starttime']} to: {startversuch['endtime']} load_data: {(t1-t0):0.1f} sec. v-----------------------------v")
                     if ((tfrom is not None) and (tto is not None)):
                         logging.debug(f"2 SNO{sno:5d} tfrom:{tfrom} tto: {tto} tto-tfrom: {(tto-tfrom):.1f} lenght of data: {len(data)} empty? {data.empty}")
                     else:
                         logging.debug(f"2 SNO{sno:5d} tfrom:{tfrom} tto: {tto} tto-tfrom: {'None'} lenght of data: {len(data)} empty? {data.empty}")
 
                     if not data.empty:
-                        logging.debug(data[['Various_Values_SpeedAct','Power_PowerAct']].head(5))
-                        logging.debug('...')
-                        logging.debug(data[['Various_Values_SpeedAct','Power_PowerAct']].tail(5))
+                        logging.debug(data[['Various_Values_SpeedAct','Power_PowerAct']].describe())
+                        #logging.debug('...')
+                        #logging.debug(data[['Various_Values_SpeedAct','Power_PowerAct']].tail(5))
                         if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
                             logging.debug(f"before run2 collectors, S {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'])} E {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'])}")
                         else:
                             logging.debug(f"before run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
+                        #if data['Power_PowerAct'].std() > 20:
                         self.results = self.run2_collectors_collect(startversuch, self.results, data)
                         phases = list(self.results['starts'][sno]['startstoptiming'].keys())
                         self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
@@ -919,10 +927,6 @@ class FSMOperator:
                 except Exception as err:
                     err_str = f"\nDuring Run2 {startversuch['no']} from {startversuch['starttime'].round('S')} to {startversuch['endtime'].round('S')}, this Error occured: {err}"
                     logging.error(traceback.format_exc())
-                    # if debug:
-                    #     print(traceback.format_exc())
-                    # else:
-                    #     print(err_str)
 
             if not silent:
                 pbar.update()
@@ -930,3 +934,4 @@ class FSMOperator:
         if not silent:
             pbar.close()
         self.runs_completed.append(self.act_run)
+        logging.debug('Run 2 completed')
