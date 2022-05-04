@@ -521,7 +521,9 @@ class FSMOperator:
                 'alarms':[],
                 'warnings':[]                
             }],
-            'run2_content': startstopFSM.run2filter_content,
+            'run2_content': {
+                'startstop': startstopFSM.run2filter_content
+            },
             'serviceselectortiming':[],
             'oilpumptiming':[],
             'stops_counter':0,
@@ -877,7 +879,7 @@ class FSMOperator:
         results = self.sync_current_collector.collect(startversuch, results, data)
         return results
 
-    def run2(self, silent=False, debug=False):
+    def run2(self, silent=False, debug=False, p_refresh=False):
         """Statemachine Operator Run 2 - uses timings collected in previos runs to download 'Power_PowerAct'
         in 1 sec. Intervals around loadramp phase. Use the curve to collect additional and more accurate data
         on loadramps.
@@ -899,7 +901,7 @@ class FSMOperator:
                     # collect dataItems & phases, align an load data in one request to myplant per Start. 
                     vset, tfrom, tto = self.run2_collectors_register(startversuch)
                     t0 = time.time()
-                    data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=False, p_suffix='_run2', debug=False)
+                    data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=p_refresh, p_suffix='_run2', debug=False)
                     t1 = time.time()
                     logging.debug(f"2 SNO{sno:5d} start: {startversuch['starttime']} to: {startversuch['endtime']} load_data: {(t1-t0):0.1f} sec. v-----------------------------v")
                     if ((tfrom is not None) and (tto is not None)):

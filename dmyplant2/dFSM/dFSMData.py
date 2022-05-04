@@ -3,7 +3,6 @@ import numpy as np
 import arrow
 import concurrent.futures
 
-
 ## data handling
 def _load_data(fsm, engine=None, p_data=None, ts_from=None, ts_to=None, p_timeCycle=None, p_forceReload=False, p_slot=99, silent=False, p_suffix='', debug = False):
     if ((ts_from is None) or (ts_to is None)):
@@ -69,7 +68,8 @@ def _resample_data(fsm, data, startversuch):
 ###################################################################################
 # load data in  1 chunk
 ###################################################################################
-def get_cycle_data(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, reduce=True, pre_period=5*60, post_period=21*60, t_range=(0,100)):
+# TODO: make it timezone aware
+def get_cycle_data(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, reduce=True, pre_period=5*60, post_period=21*60, t_range=(0,100), p_refresh=False):
     tns = pd.to_datetime((startversuch['starttime'].timestamp() - pre_period + t_range[0]/100.0 * ((startversuch['endtime']  - startversuch['starttime']).seconds + pre_period + post_period)), unit='s')
     tne = pd.to_datetime((startversuch['starttime'].timestamp() - pre_period + t_range[1]/100.0 * ((startversuch['endtime']  - startversuch['starttime']).seconds + pre_period + post_period)), unit='s')
     t0 = tns.timestamp() * 1e3
@@ -80,7 +80,7 @@ def get_cycle_data(fsm,startversuch, max_length=None, min_length=None, cycletime
     if min_length:
         if (t1 - t0) < min_length * 1e3:
             t1 = int(t0 + min_length * 1e3)
-    data = load_data(fsm, cycletime, tts_from=t0, tts_to=t1, silent=silent, p_data=p_data)
+    data = load_data(fsm, cycletime, tts_from=t0, tts_to=t1, silent=silent, p_data=p_data, p_forceReload=p_refresh)
     #data = fsm._resample_data(data,startversuch) if reduce else data
     data = data[(data['time'] >= t0) & (data['time'] <= t1)]
     return data
@@ -102,20 +102,20 @@ def _debug(start, ende, data, dataname):
 ###################################################################################
 # load data split into 1 sec chunks at start and end, and 30s chunks in the middle
 ###################################################################################
-def _load_reduced_data(fsm, startversuch, ptts_from, ptts_to, pdata=None):
+def _load_reduced_data(fsm, startversuch, ptts_from, ptts_to, pdata=None, p_refresh=False):
     # Hires 1" von 'starttime' bis 15' danach und von 15' vor 'endtime' bis Ende
     # dazwischen alle 30" einen Messwert. 
     data1 = pd.DataFrame([]);data2 = pd.DataFrame([]);data3 = pd.DataFrame([]);
-    d1t = int(arrow.get(startversuch['starttime'] + pd.Timedelta(value=15, unit='min')).timestamp() * 1000)
-    d3t = int(arrow.get(startversuch['endtime'] - pd.Timedelta(value=15, unit='min')).timestamp() * 1000)
+    d1t = int(arrow.get(startversuch['starttime'] + pd.Timedelta(value=15, unit='min')).to('Europe/Vienna').timestamp() * 1000)
+    d3t = int(arrow.get(startversuch['endtime'] - pd.Timedelta(value=15, unit='min')).to('Europe/Vienna').timestamp() * 1000)
     d3t = max(d3t, ptts_from); d1t = min(d1t,d3t)
-    data1 = load_data(fsm,cycletime=1, tts_from=ptts_from, tts_to=d1t, silent=True, p_data=pdata)
+    data1 = load_data(fsm,cycletime=1, tts_from=ptts_from, tts_to=d1t, silent=True, p_data=pdata, p_forceReload=p_refresh)
     if 'time' in data1:
         data1 = data1[(data1['time'] >= ptts_from) & (data1['time'] < d1t)]
-    data2 = load_data(fsm, cycletime=30, tts_from=d1t, tts_to=d3t, silent=True, p_data=pdata)
+    data2 = load_data(fsm, cycletime=30, tts_from=d1t, tts_to=d3t, silent=True, p_data=pdata, p_forceReload=p_refresh)
     if 'time' in data2:
         data2 = data2[(data2['time'] >= d1t) & (data2['time'] < d3t)]
-    data3 = load_data(fsm,cycletime=1, tts_from=d3t, tts_to=ptts_to, silent=True, p_data=pdata)
+    data3 = load_data(fsm,cycletime=1, tts_from=d3t, tts_to=ptts_to, silent=True, p_data=pdata, p_forceReload=p_refresh)
     if 'time' in data3:
         data3 = data3[(data3['time'] >= d3t) & (data3['time'] <= ptts_to)]
     #_debug(ptts_from,d1t, data1, 'data1')
@@ -123,7 +123,7 @@ def _load_reduced_data(fsm, startversuch, ptts_from, ptts_to, pdata=None):
     #_debug(d3t,ptts_to,data3, 'data3')
     return pd.concat([data1,data2,data3]).reset_index(drop='index')
 
-def get_cycle_data2(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, pre_period=5*60, post_period=21*60, t_range=(0,100)):
+def get_cycle_data2(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, pre_period=5*60, post_period=21*60, t_range=(0,100), p_refresh=False):
     tns = pd.to_datetime((startversuch['starttime'].timestamp() - pre_period + t_range[0]/100.0 * ((startversuch['endtime']  - startversuch['starttime']).seconds + pre_period + post_period)), unit='s')
     tne = pd.to_datetime((startversuch['starttime'].timestamp() - pre_period + t_range[1]/100.0 * ((startversuch['endtime']  - startversuch['starttime']).seconds + pre_period + post_period)), unit='s')
     t0 = tns.timestamp() * 1e3
@@ -134,7 +134,7 @@ def get_cycle_data2(fsm,startversuch, max_length=None, min_length=None, cycletim
     if min_length:
         if (t1 - t0) < min_length * 1e3:
             t1 = int(t0 + min_length * 1e3)
-    data = _load_reduced_data(fsm, startversuch, t0, t1, pdata=p_data)
+    data = _load_reduced_data(fsm, startversuch, t0, t1, pdata=p_data, p_refresh=p_refresh)
     if not data.empty:
         data = data[(data['time'] >= t0) & (data['time'] <= t1)]
     return data
@@ -143,22 +143,19 @@ def get_cycle_data2(fsm,startversuch, max_length=None, min_length=None, cycletim
 # load data split into 1 sec chunks at start and end, and 30s chunks in the middle
 # use concurrent loading.
 ###################################################################################
-def _load_reduced_data_ccr(fsm, startversuch, ptts_from, ptts_to, pdata=None):
+def _load_reduced_data_ccr(fsm, startversuch, ptts_from, ptts_to, pdata=None, p_refresh=False):
     # Hires 1" von 'starttime' bis 15' danach und von 15' vor 'endtime' bis Ende
     # dazwischen alle 30" einen Messwert. 
-    d1t = int(arrow.get(startversuch['starttime'] + pd.Timedelta(value=15, unit='min')).timestamp() * 1000)
-    d3t = int(arrow.get(startversuch['endtime'] - pd.Timedelta(value=15, unit='min')).timestamp() * 1000)
+    d1t = int(arrow.get(startversuch['starttime'] + pd.Timedelta(value=15, unit='min')).to('Europe/Vienna').timestamp() * 1000)
+    d3t = int(arrow.get(startversuch['endtime'] - pd.Timedelta(value=15, unit='min')).to('Europe/Vienna').timestamp() * 1000)
     d3t = max(d3t, ptts_from); d1t = min(d1t,d3t)
 
     data1 = pd.DataFrame([]);data2 = pd.DataFrame([]);data3 = pd.DataFrame([]);
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_list = []
-        #data1 = load_data(fsm,cycletime=1, tts_from=ptts_from, tts_to=d1t, silent=True, p_data=pdata)
-        #data2 = load_data(fsm, cycletime=30, tts_from=d1t, tts_to=d3t, silent=True, p_data=pdata)
-        #data3 = load_data(fsm,cycletime=1, tts_from=d3t, tts_to=ptts_to, silent=True, p_data=pdata)
-        future_list.append(executor.submit(load_data,fsm,cycletime=1, tts_from=ptts_from, tts_to=d1t, silent=True, p_data=pdata))
-        future_list.append(executor.submit(load_data,fsm, cycletime=30, tts_from=d1t, tts_to=d3t, silent=True, p_data=pdata))
-        future_list.append(executor.submit(load_data,fsm,cycletime=1, tts_from=d3t, tts_to=ptts_to, silent=True, p_data=pdata))
+        future_list.append(executor.submit(load_data,fsm,cycletime=1,  tts_from=ptts_from, tts_to=d1t, silent=True, p_data=pdata, p_forceReload=p_refresh))
+        future_list.append(executor.submit(load_data,fsm,cycletime=30, tts_from=d1t, tts_to=d3t, silent=True, p_data=pdata, p_forceReload=p_refresh))
+        future_list.append(executor.submit(load_data,fsm,cycletime=1,  tts_from=d3t, tts_to=ptts_to, silent=True, p_data=pdata, p_forceReload=p_refresh))
         concurrent.futures.wait(future_list)
         data1 = future_list[0].result()
         data2 = future_list[1].result()
@@ -177,7 +174,7 @@ def _load_reduced_data_ccr(fsm, startversuch, ptts_from, ptts_to, pdata=None):
 
     return pd.concat([data1,data2,data3]).reset_index(drop='index')
 
-def get_cycle_data3(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, pre_period=5*60, post_period=21*60, t_range=(0,100)):
+def get_cycle_data3(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, pre_period=5*60, post_period=21*60, t_range=(0,100), p_refresh=False):
     tns = pd.to_datetime((startversuch['starttime'].timestamp() - pre_period + t_range[0]/100.0 * ((startversuch['endtime']  - startversuch['starttime']).seconds + pre_period + post_period)), unit='s')
     tne = pd.to_datetime((startversuch['starttime'].timestamp() - pre_period + t_range[1]/100.0 * ((startversuch['endtime']  - startversuch['starttime']).seconds + pre_period + post_period)), unit='s')
     t0 = tns.timestamp() * 1e3
@@ -188,7 +185,7 @@ def get_cycle_data3(fsm,startversuch, max_length=None, min_length=None, cycletim
     if min_length:
         if (t1 - t0) < min_length * 1e3:
             t1 = int(t0 + min_length * 1e3)
-    data = _load_reduced_data_ccr(fsm, startversuch, t0, t1, pdata=p_data)
+    data = _load_reduced_data_ccr(fsm, startversuch, t0, t1, pdata=p_data, p_refresh=p_refresh)
     if not data.empty:
         data = data[(data['time'] >= t0) & (data['time'] <= t1)]
     return data

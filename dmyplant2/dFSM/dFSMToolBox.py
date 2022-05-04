@@ -118,7 +118,8 @@ class Exhaust_temp_Collector(Start_Data_Collector):
         super().__init__(phases)
         self._vset += ['Power_PowerAct','Exhaust_TempCylMin','Exhaust_TempCylMax']
         self._content = ['ExhTempCylMax','ExhSpread_at_Max','Power_at_ExhTempCylMax']
-        results['run2_content'] += self._content
+        # define table results:
+        results['run2_content']['exhaust'] = ['no'] + self._content
 
     def collect(self, startversuch, results, data):
         tdata = self.cut_data(startversuch, data, self._phases)
@@ -147,7 +148,8 @@ class Tecjet_Collector(Start_Data_Collector):
         super().__init__(phases)
         self._vset += ['TecJet_Lambda1','TecJet_GasTemp1','TecJet_GasPress1','TecJet_GasDiffPress','TecJet_ValvePos1']
         self._content = ['TJ_GasDiffPressMin','TJ_GasPress1_at_Min','TJ_GasTemp1_at_Min','TJ_Pos_at_Min']
-        results['run2_content'] += self._content
+        # define table results:
+        results['run2_content']['tecjet'] = ['no'] + self._content
 
     def collect(self, startversuch, results, data):
         tjdata = self.cut_data(startversuch, data, self._phases)
@@ -176,7 +178,8 @@ class Sync_Current_Collector(Start_Data_Collector):
         self._speed_nominal = speed_nominal
         self._vset += ['Various_Values_SpeedAct','TecJet_Lambda1', 'Hyd_TempOil', 'Hyd_TempCoolWat']
         self._content = ['rpm_dmax','rpm_dmin','rpm_spread', 'Lambda_rpm_max', 'TempOil_rpm_max', 'TempCoolWat_rpm_max']
-        results['run2_content'] += self._content
+        # define table results:
+        results['run2_content']['synchronisation'] = ['no'] + self._content
 
 
     def collect(self, startversuch, results, data):
