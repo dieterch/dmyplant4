@@ -682,6 +682,7 @@ class Engine:
                     if set(itemIds) == set(dinfo['dataItems']):
                         ffrom = list(dinfo['p_from'].values())[0]
                         if ffrom.to('Europe/Vienna') <= p_from.to('Europe/Vienna'):
+                            logging.debug(f"dEngine histdata: loading data from file {fn}")
                             ldf = pd.read_hdf(fn, "data")
                             os.remove(fn)
                             # Check last lp_to in the file and update the file ....
@@ -731,6 +732,7 @@ class Engine:
 
 ###########################################
 #improved hist_data ? Dieter, 8.3.2022
+#TODO: combine with histdata or delete one of the methods
 
     def hist_data2(self, itemIds={161: ['CountOph', 'h']}, p_limit=None, p_from=None, p_to=None, timeCycle=86400,
                   assetType='J-Engine', includeMinMax='false', forceDownSampling='false', slot=0, 
@@ -780,6 +782,7 @@ class Engine:
                     ###########################################################    
                         ffrom = list(dinfo['p_from'].values())[0]
                         if ffrom.to('Europe/Vienna') <= p_from.to('Europe/Vienna'):
+                            logging.debug(f"dEngine histdata2: loading data from file {fn}")
                             ldf = pd.read_hdf(fn, "data")
                             os.remove(fn)
                             # Check last lp_to in the file and update the file ....
@@ -1285,6 +1288,7 @@ class Engine:
             pd.DataFrame: Diane Messages.
         """
         # messages consist of the following severities
+        logging.debug(f"dEngine get_messages2: load messages from {p_from} to {p_to}")
         sev = [600,650,700,800]
         p_from_ts = int(arrow.get(p_from).to('Europe/Vienna').timestamp() * 1e3)
         p_to_ts = int(arrow.get(p_to).to('Europe/Vienna').timestamp() * 1e3)
@@ -1299,7 +1303,8 @@ class Engine:
 
         pfn = self._fname +"_messages.pkl"
         if os.path.exists(pfn):
-            messages = pd.read_pickle(pfn)    
+            messages = pd.read_pickle(pfn)
+            logging.debug(f"dEngine get_messages2: loaded messages from {pfn}")
             if messages.empty:      # avoid errors with an empty messages dataframe ---
                 os.remove(pfn)
 

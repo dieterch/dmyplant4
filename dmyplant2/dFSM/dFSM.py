@@ -75,14 +75,12 @@ class State:
         return self._statename
 
     def trigger_on_vector(self, vector, msg):
-        #logging.debug(f"State{'*' if self._trigger else ' '}{self._statename:18},trigger_on_vector_base enter,{vector},{msg_smalltxt(msg)}")
         vector.currentstate = self.checkmsg(msg)
         vector.statechange = self._trigger #???
         if self._trigger:
             vector.laststate = self._statename
             vector.laststate_start = vector.currentstate_start
             vector.currentstate_start = pd.to_datetime(msg['timestamp'] * 1e6)
-        #logging.debug(f"State{'*' if self._trigger else ' '}{self._statename:18},trigger_on_vector_base  exit,{vector},{msg_smalltxt(msg)}")
         return vector
 
 class LoadrampStateV2(State):
@@ -99,11 +97,13 @@ class LoadrampStateV2(State):
         self._loadramp = self._e['rP_Ramp_Set'] or 0.625 # %/sec
         self._default_ramp_duration = (100.0 - e.sync_load) / self._loadramp
         super().__init__(statename, transferfun_list)
-        logging.debug(f"in init - loadramp: {self._loadramp:5.1f}, duration {self._default_ramp_duration:5.1f}, timestamp {str(self._full_load_timestamp):15}")
+        if self._operator.act_run in self._operator.logrun:
+            logging.debug(f"{self._operator.act_run} in init - loadramp: {self._loadramp:5.1f}, duration {self._default_ramp_duration:5.1f}, timestamp {str(self._full_load_timestamp):15}")
 
     def trigger_on_vector(self, vector, msg):
         vector = super().trigger_on_vector(vector, msg)
-        logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'trigger_on_vector':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(msg)}")
+        if self._operator.act_run in self._operator.logrun:
+            logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'trigger_on_vector':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(msg)}")
 
         if self._full_load_timestamp is not None:
             if msg['timestamp'] > int(self._full_load_timestamp + 2 * self._default_ramp_duration * 1e3): # Emergency, message times got most likely confused.
@@ -113,11 +113,12 @@ class LoadrampStateV2(State):
                     new_msg['message'] = 'Target load reached (emergency)'
                     new_msg['timestamp'] = msg['timestamp']
                     new_msg['severity'] = 600
-                    logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> emergency +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(new_msg)}")
+                    if self._operator.act_run in self._operator.logrun:
+                        logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> emergency +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(new_msg)}")
                     vector.statechange = True
                     return vector #emergency exit
 
-        # calculate the end of ramp time if it isnt defined.
+        # calculate the end of ramp time in the first call, triggered if full_load_timestamp is None.
         if self._full_load_timestamp == None:
             self._full_load_timestamp = int((vector.currentstate_start.timestamp() + self._default_ramp_duration) * 1e3)
             #self._operator.inject_message({'name':'9047', 'message':'Target load reached (calculated)','timestamp':self._full_load_timestamp,'severity':600})
@@ -128,18 +129,21 @@ class LoadrampStateV2(State):
                 new_msg['timestamp'] = self._full_load_timestamp
                 new_msg['severity'] = 600
                 self._operator.inject_message(new_msg)
-                logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> inject +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(new_msg)}")
+                if self._operator.act_run in self._operator.logrun:
+                    logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> inject +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(new_msg)}")
 
         # use the message target load reached to make the trigger more accurate. (This message isnt available on all engines.)
         if msg['name'] == '9047':
             if self._operator.act_run == 0:
                 self._full_load_timestamp = msg['timestamp']
                 self._operator.replace_message(msg)
-                logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> replace +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{self._operator.msg_smalltxt(msg)}")
+                if self._operator.act_run in self._operator.logrun:
+                    logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> replace +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{self._operator.msg_smalltxt(msg)}")
 
         if vector.statechange:
-            logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> normal statechange':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{self._operator.msg_smalltxt(msg)}")
-            self._full_load_timestamp = None
+            if self._operator.act_run in self._operator.logrun:
+                logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> normal statechange':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{self._operator.msg_smalltxt(msg)}")
+            self._full_load_timestamp = None # reset the trigger!
 
         return vector
 
@@ -177,8 +181,8 @@ class FSM:
     def call_trigger_states(self, nsvec):
         nsvec[self.name] = self.states[nsvec[self.name].currentstate].trigger_on_vector(nsvec[self.name], nsvec['msg'])
         if nsvec[self.name].statechange:
-            if self.name in ['startstop']: # hardcoded, log  only states for startstop 
-                logging.debug(f"{self.name} changed state from {nsvec[self.name].laststate} to {nsvec[self.name].currentstate}")
+            if self.name in nsvec['logstates']: # hardcoded, log  only states for startstop 
+                    logging.debug(f"{nsvec['startno']}, in FSM {self.name}, changed state from {nsvec[self.name].laststate} to {nsvec[self.name].currentstate}")
         return nsvec
 
     def dot(self, fn):
@@ -407,7 +411,8 @@ class startstopFSM(FSM):
                     'ramprate': np.nan,
                     'maxload': np.nan
                 })
-                logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, Start initialized in startstopFSM collect_data")
+                if self._operator.act_run in self._operator.logrun:
+                    logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, Start initialized in startstopFSM collect_data")
                 nsvec['startno'] = results['starts_counter']
                 results['starts_counter'] += 1 # index for next start
                 nsvec['in_operation'] = 'on'
@@ -476,8 +481,9 @@ class FSMOperator:
         self.message_queue = []
         self.extra_messages = []
         self.runs_completed = []
+        self.logrun = [1,2] # possibility to limit logging to certain runs.
+        self.logstates = ['startstop']
         self.act_run = 0
-        self.loglevel = logging.DEBUG
 
         #register statehandlers
         #TODO: wite a registering interface so that all implementation steps
@@ -491,6 +497,7 @@ class FSMOperator:
             self.startstopHandler.name: self.startstopHandler.initialize_statevector(self.first_message),
             self.serviceSelectorHandler.name: self.serviceSelectorHandler.initialize_statevector(self.first_message),
             self.oilpumpHandler.name: self.oilpumpHandler.initialize_statevector(self.first_message),
+            'logstates' : self.logstates,
             'in_operation': 'off',
             'service_selector':  self.serviceSelectorHandler.initial_state,
             'oil_pump': self.oilpumpHandler._initial_state,
@@ -773,9 +780,12 @@ class FSMOperator:
 
             if self.nsvec[self.startstopHandler.name].statechange:
                 if self.nsvec[self.startstopHandler.name].currentstate == 'startpreparation':
+                    if self.act_run in self.logrun:
+                        logging.debug(f"0 SNO{fsm0_starts_counter:5d}  v-----------------------------v")
                     self.nsvec['startno'] = fsm0_starts_counter
                     fsm0_starts_counter += 1
-                    logging.debug(f"{self.act_run} SNO{self.nsvec['startno']:5d}, new Start logged")
+                    if self.act_run in self.logrun:
+                        logging.debug(f"{self.act_run} SNO{self.nsvec['startno']:5d}, new Start logged")
             if not silent:
                 pbar.update()
         self.nsvec = vecstore # restore statevector
@@ -903,28 +913,28 @@ class FSMOperator:
                     t0 = time.time()
                     data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=p_refresh, p_suffix='_run2', debug=False)
                     t1 = time.time()
-                    logging.debug(f"2 SNO{sno:5d} start: {startversuch['starttime']} to: {startversuch['endtime']} load_data: {(t1-t0):0.1f} sec. v-----------------------------v")
+                    if self.act_run in self.logrun:
+                        logging.debug(f"2 SNO{sno:5d} start: {startversuch['starttime']} to: {startversuch['endtime']} load_data: {(t1-t0):0.1f} sec. v-----------------------------v")
                     if ((tfrom is not None) and (tto is not None)):
                         logging.debug(f"2 SNO{sno:5d} tfrom:{tfrom} tto: {tto} tto-tfrom: {(tto-tfrom):.1f} lenght of data: {len(data)} empty? {data.empty}")
                     else:
                         logging.debug(f"2 SNO{sno:5d} tfrom:{tfrom} tto: {tto} tto-tfrom: {'None'} lenght of data: {len(data)} empty? {data.empty}")
 
                     if not data.empty:
-                        logging.debug(data[['Various_Values_SpeedAct','Power_PowerAct']].describe())
-                        #logging.debug('...')
-                        #logging.debug(data[['Various_Values_SpeedAct','Power_PowerAct']].tail(5))
-                        if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
-                            logging.debug(f"before run2 collectors, S {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'])} E {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'])}")
-                        else:
-                            logging.debug(f"before run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
-                        #if data['Power_PowerAct'].std() > 20:
+                        if self.act_run in self.logrun:
+                            logging.debug(data[['Various_Values_SpeedAct','Power_PowerAct']].describe())
+                            if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
+                                    logging.debug(f"before run2 collectors, S {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'])} E {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'])}")
+                            else:
+                                logging.debug(f"before run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
                         self.results = self.run2_collectors_collect(startversuch, self.results, data)
                         phases = list(self.results['starts'][sno]['startstoptiming'].keys())
                         self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
-                        if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
-                            logging.debug(f"after  run2 collectors, S {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'])} E {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'])}")
-                        else:
-                            logging.debug(f"after  run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
+                        if self.act_run in self.logrun:
+                            if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
+                                logging.debug(f"after  run2 collectors, S {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'])} E {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'])}")
+                            else:
+                                logging.debug(f"after  run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
 
                 except Exception as err:
                     err_str = f"\nDuring Run2 {startversuch['no']} from {startversuch['starttime'].round('S')} to {startversuch['endtime'].round('S')}, this Error occured: {err}"
