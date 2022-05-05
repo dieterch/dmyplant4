@@ -182,7 +182,7 @@ class FSM:
         nsvec[self.name] = self.states[nsvec[self.name].currentstate].trigger_on_vector(nsvec[self.name], nsvec['msg'])
         if nsvec[self.name].statechange:
             if self.name in nsvec['logstates']: # hardcoded, log  only states for startstop 
-                    logging.debug(f"{nsvec['startno']}, in FSM {self.name}, changed state from {nsvec[self.name].laststate} to {nsvec[self.name].currentstate}")
+                    logging.debug(f"- SNO{nsvec['startno']:5d}, in FSM {self.name}, changed state from {nsvec[self.name].laststate} to {nsvec[self.name].currentstate}")
         return nsvec
 
     def dot(self, fn):
@@ -871,9 +871,9 @@ class FSMOperator:
     def run2_collectors_setup(self):
         ratedload = self._e['Power_PowerNominal']
         self.target_load_collector = Target_load_Collector(['loadramp'],ratedload, period_factor=3, helplinefactor=0.8)
-        self.exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'], self.results)
-        self.tecjet_collector = Tecjet_Collector(['loadramp'], self. results)
-        self.sync_current_collector = Sync_Current_Collector(['idle','synchronize'],self.results, self._e.Speed_nominal)
+        self.exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'], self.results, self._e)
+        self.tecjet_collector = Tecjet_Collector(['loadramp'], self. results, self._e)
+        self.sync_current_collector = Sync_Current_Collector(['idle','synchronize'],self.results, self._e)
 
     def run2_collectors_register(self, startversuch):
         vset, tfrom, tto = self.target_load_collector.register(startversuch, vset=[], tfrom=None, tto=None) #vset,tfrom,tto will be populated by the Collectors
@@ -914,7 +914,7 @@ class FSMOperator:
                     data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=p_refresh, p_suffix='_run2', debug=False)
                     t1 = time.time()
                     if self.act_run in self.logrun:
-                        logging.debug(f"2 SNO{sno:5d} start: {startversuch['starttime']} to: {startversuch['endtime']} load_data: {(t1-t0):0.1f} sec. v-----------------------------v")
+                        logging.debug(f"2 SNO{sno:5d} start: {startversuch['starttime'].round('S')} to: {startversuch['endtime'].round('S')} load_data: {(t1-t0):0.1f} sec. v-----------------------------v")
                     if ((tfrom is not None) and (tto is not None)):
                         logging.debug(f"2 SNO{sno:5d} tfrom:{tfrom} tto: {tto} tto-tfrom: {(tto-tfrom):.1f} lenght of data: {len(data)} empty? {data.empty}")
                     else:
@@ -924,7 +924,7 @@ class FSMOperator:
                         if self.act_run in self.logrun:
                             logging.debug(data[['Various_Values_SpeedAct','Power_PowerAct']].describe())
                             if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
-                                    logging.debug(f"before run2 collectors, S {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'])} E {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'])}")
+                                    logging.debug(f"before run2 collectors, S {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'].strftime('%d.%m.%Y %H:%M:%S')} E {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'].strftime('%d.%m.%Y %H:%M:%S')}")
                             else:
                                 logging.debug(f"before run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
                         self.results = self.run2_collectors_collect(startversuch, self.results, data)
@@ -932,7 +932,7 @@ class FSMOperator:
                         self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
                         if self.act_run in self.logrun:
                             if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
-                                logging.debug(f"after  run2 collectors, S {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'])} E {pf(self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'])}")
+                                logging.debug(f"after  run2 collectors, S {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'].strftime('%d.%m.%Y %H:%M:%S')} E {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'].strftime('%d.%m.%Y %H:%M:%S')}")
                             else:
                                 logging.debug(f"after  run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
 

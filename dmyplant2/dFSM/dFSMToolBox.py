@@ -114,10 +114,11 @@ class Target_load_Collector(Start_Data_Collector):
             tto = self.check_to(tto)
         return vset, tfrom, tto
 class Exhaust_temp_Collector(Start_Data_Collector):
-    def __init__(self, phases, results):
+    def __init__(self, phases, results, engine):
         super().__init__(phases)
+        self._e = engine
         self._vset += ['Power_PowerAct','Exhaust_TempCylMin','Exhaust_TempCylMax']
-        self._content = ['ExhTempCylMax','ExhSpread_at_Max','Power_at_ExhTempCylMax']
+        self._content = ['ExhTempCylMax','ExhSpreadMax','ExhSpread_at_Max','Power_at_ExhTempCylMax']
         # define table results:
         results['run2_content']['exhaust'] = ['no'] + self._content
 
@@ -144,8 +145,9 @@ class Exhaust_temp_Collector(Start_Data_Collector):
         results['starts'][sno].update(res) 
         return results 
 class Tecjet_Collector(Start_Data_Collector):
-    def __init__(self, phases, results):
+    def __init__(self, phases, results, engine):
         super().__init__(phases)
+        self._e = engine
         self._vset += ['TecJet_Lambda1','TecJet_GasTemp1','TecJet_GasPress1','TecJet_GasDiffPress','TecJet_ValvePos1']
         self._content = ['TJ_GasDiffPressMin','TJ_GasPress1_at_Min','TJ_GasTemp1_at_Min','TJ_Pos_at_Min']
         # define table results:
@@ -173,9 +175,10 @@ class Tecjet_Collector(Start_Data_Collector):
         return results  
 
 class Sync_Current_Collector(Start_Data_Collector):
-    def __init__(self,phases, results, speed_nominal):
+    def __init__(self,phases, results, engine):
         super().__init__(phases)
-        self._speed_nominal = speed_nominal
+        self._e = engine
+        self._speed_nominal = engine.Speed_nominal
         self._vset += ['Various_Values_SpeedAct','TecJet_Lambda1', 'Hyd_TempOil', 'Hyd_TempCoolWat']
         self._content = ['rpm_dmax','rpm_dmin','rpm_spread', 'Lambda_rpm_max', 'TempOil_rpm_max', 'TempCoolWat_rpm_max']
         # define table results:
@@ -209,28 +212,6 @@ class Sync_Current_Collector(Start_Data_Collector):
         sno = startversuch['no']
         results['starts'][sno].update(res)
         return results  
-
-
-def get_size(obj, seen=None):
-    """Recursively finds size of objects"""
-    size = sys.getsizeof(obj)
-    if seen is None:
-        seen = set()
-    obj_id = id(obj)
-    if obj_id in seen:
-        return 0
-    # Important mark as seen *before* entering recursion to gracefully handle
-    # self-referential objects
-    seen.add(obj_id)
-    if isinstance(obj, dict):
-        size += sum([get_size(v, seen) for v in obj.values()])
-        size += sum([get_size(k, seen) for k in obj.keys()])
-    elif hasattr(obj, '__dict__'):
-        size += get_size(obj.__dict__, seen)
-    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
-        size += sum([get_size(i, seen) for i in obj])
-    return size
-
 
 def loadramp_edge_detect(fsm, startversuch, debug=False, periodfactor=3, helplinefactor=0.8):
     # 1.4.2022 Aufgrund von Bautzen, der sehr langsam startet
@@ -351,3 +332,23 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     lastvals = y[-1] + np.abs(y[-half_window-1:-1][::-1] - y[-1])
     y = np.concatenate((firstvals, y, lastvals))
     return np.convolve( m[::-1], y, mode='valid')
+
+def get_size(obj, seen=None):
+    """Recursively finds size of objects"""
+    size = sys.getsizeof(obj)
+    if seen is None:
+        seen = set()
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    # Important mark as seen *before* entering recursion to gracefully handle
+    # self-referential objects
+    seen.add(obj_id)
+    if isinstance(obj, dict):
+        size += sum([get_size(v, seen) for v in obj.values()])
+        size += sum([get_size(k, seen) for k in obj.keys()])
+    elif hasattr(obj, '__dict__'):
+        size += get_size(obj.__dict__, seen)
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum([get_size(i, seen) for i in obj])
+    return size
