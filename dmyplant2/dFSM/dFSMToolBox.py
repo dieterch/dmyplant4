@@ -67,10 +67,11 @@ class Start_Data_Collector:
             tto = self.check_to(tto)
         return vset, tfrom, tto
 class Target_load_Collector(Start_Data_Collector):
-    def __init__(self, phases, ratedload, period_factor=3, helplinefactor=0.8):
+    def __init__(self, phases, results, engine, period_factor=3, helplinefactor=0.8):
         super().__init__(phases)
+        self._e = engine
+        self.ratedload = self._e['Power_PowerNominal']
         self._vset += ['Power_PowerAct']
-        self.ratedload = ratedload
         self.period_factor=period_factor
         self.helplinefactor=helplinefactor
 
@@ -117,8 +118,9 @@ class Exhaust_temp_Collector(Start_Data_Collector):
     def __init__(self, phases, results, engine):
         super().__init__(phases)
         self._e = engine
-        self._vset += ['Power_PowerAct','Exhaust_TempCylMin','Exhaust_TempCylMax']
-        self._content = ['ExhTempCylMax','ExhSpreadMax','ExhSpread_at_Max','Power_at_ExhTempCylMax']
+        self.tcyl = self._e.dataItemsCyl('Exhaust_TempCyl*')
+        self._vset += ['Power_PowerAct','Exhaust_TempCylMin','Exhaust_TempCylMax'] + self.tcyl
+        self._content = ['ExhTempCylMax','ExhSpreadMax','ExhSpread_at_Max','Power_at_ExhTempCylMax'] + self.tcyl
         # define table results:
         results['run2_content']['exhaust'] = ['no'] + self._content
 
@@ -178,7 +180,7 @@ class Sync_Current_Collector(Start_Data_Collector):
     def __init__(self,phases, results, engine):
         super().__init__(phases)
         self._e = engine
-        self._speed_nominal = engine.Speed_nominal
+        self._speed_nominal = self._e.Speed_nominal
         self._vset += ['Various_Values_SpeedAct','TecJet_Lambda1', 'Hyd_TempOil', 'Hyd_TempCoolWat']
         self._content = ['rpm_dmax','rpm_dmin','rpm_spread', 'Lambda_rpm_max', 'TempOil_rpm_max', 'TempCoolWat_rpm_max']
         # define table results:
@@ -194,7 +196,7 @@ class Sync_Current_Collector(Start_Data_Collector):
             if point == point: # test for not NaN
                 datapoint = sydata.loc[point]
                 xmax = datapoint['datetime']
-                res['rpm_dmax'] = sydata.at[datapoint.name,'Various_Values_SpeedAct'] - self._speed_nominal
+                res['rpm_dmax'] = sydata.at[datapoint.name,'Various_Values_SpeedAct'] # - self._speed_nominal
                 res['Lambda_rpm_max'] = sydata.at[datapoint.name,'TecJet_Lambda1']
                 res['TempOil_rpm_max'] = sydata.at[datapoint.name,'Hyd_TempOil']
                 res['TempCoolWat_rpm_max'] = sydata.at[datapoint.name,'Hyd_TempCoolWat']
@@ -207,7 +209,7 @@ class Sync_Current_Collector(Start_Data_Collector):
                     if point2 == point2:
                         datapoint2 = sydata2.loc[point2]
                         # calcultae speed spread during synchronization
-                        res['rpm_dmin'] = sydata2.at[datapoint2.name,'Various_Values_SpeedAct'] - self._speed_nominal
+                        res['rpm_dmin'] = sydata2.at[datapoint2.name,'Various_Values_SpeedAct'] # - self._speed_nominal
                         res['rpm_spread'] = res['rpm_dmax'] - res['rpm_dmin']
         sno = startversuch['no']
         results['starts'][sno].update(res)
