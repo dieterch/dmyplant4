@@ -870,10 +870,10 @@ class FSMOperator:
 
     def run2_collectors_setup(self):
         #ratedload = self._e['Power_PowerNominal']
-        self.target_load_collector = Target_load_Collector(['loadramp'], self.results, self._e, period_factor=3, helplinefactor=0.8)
-        self.exhaust_temp_collector = Exhaust_temp_Collector(['loadramp'], self.results, self._e)
-        self.tecjet_collector = Tecjet_Collector(['loadramp'], self.results, self._e)
-        self.sync_current_collector = Sync_Current_Collector(['idle','synchronize'],self.results, self._e)
+        self.target_load_collector = Target_load_Collector(self.results, self._e, period_factor=3, helplinefactor=0.8)
+        self.exhaust_temp_collector = Exhaust_temp_Collector(self.results, self._e)
+        self.tecjet_collector = Tecjet_Collector(self.results, self._e)
+        self.sync_current_collector = Sync_Current_Collector(self.results, self._e)
 
     def run2_collectors_register(self, startversuch):
         vset, tfrom, tto = self.target_load_collector.register(startversuch, vset=[], tfrom=None, tto=None) #vset,tfrom,tto will be populated by the Collectors

@@ -3,9 +3,10 @@ import pandas as pd
 import numpy as np
 from .dFSMData import load_data
 
-def msg_smalltxt(msg):
-    return f"{msg['severity']} {pd.to_datetime(int(msg['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')}  {msg['name']} {msg['message']}"
 
+####################################################
+### generic Data Collector base class 
+####################################################
 class Start_Data_Collector:
     def __init__(self, phases):
         self._vset = []
@@ -66,9 +67,14 @@ class Start_Data_Collector:
             tfrom = self.check_from(tfrom)
             tto = self.check_to(tto)
         return vset, tfrom, tto
+
+####################################################
+### calculate loadramp, Targetload, Maxoad, ramprate  
+####################################################
 class Target_load_Collector(Start_Data_Collector):
-    def __init__(self, phases, results, engine, period_factor=3, helplinefactor=0.8):
-        super().__init__(phases)
+    def __init__(self, results, engine, period_factor=3, helplinefactor=0.8):
+        self.phases = ['loadramp']
+        super().__init__(self.phases)
         self._e = engine
         self.ratedload = self._e['Power_PowerNominal']
         self._vset += ['Power_PowerAct']
@@ -114,41 +120,116 @@ class Target_load_Collector(Start_Data_Collector):
             self.end = self.start + self.period_factor * (self.end-self.start)
             tto = self.check_to(tto)
         return vset, tfrom, tto
+
+####################################
+### collect Exhaust Temperature Data
+####################################
 class Exhaust_temp_Collector(Start_Data_Collector):
-    def __init__(self, phases, results, engine):
-        super().__init__(phases)
+    def __init__(self, results, engine):
+        self.name = 'exhaust'
+
+        # where ?
+        self.phases = ['loadramp']
+        super().__init__(self.phases)
+
+        # what ?
         self._e = engine
         self.tcyl = self._e.dataItemsCyl('Exhaust_TempCyl*')
         self._vset += ['Power_PowerAct','Exhaust_TempCylMin','Exhaust_TempCylMax'] + self.tcyl
-        self._content = ['ExhTempCylMax','ExhSpreadMax','ExhSpread_at_Max','Power_at_ExhTempCylMax'] + self.tcyl
-        # define table results:
-        results['run2_content']['exhaust'] = ['no'] + self._content
+
+        # results to collect:
+        #self._content = ['ExhTempCylMax','ExhSpread_at_Max','Power_at_ExhTempCylMax','ExhSpreadMax','Power_at_ExhSpreadMax']
+        self._content = ['ExTCylMax',
+                        'ExTCylMaxNo',
+                        'ExTCylMin@Max',
+                        'ExTCylMin@MaxNo',
+                        'ExSpread@Max',
+                        'PWR@ExTCylMax',
+                        'ExSpreadMax',
+                        'ExTCylMax@SpreadMax',
+                        'ExTCylMax@SpreadMaxNo',
+                        'ExTCylMin@SpreadMax',
+                        'ExTCylMin@SpreadMaxNo',
+                        'PWR@ExSpreadMax']
+        results['run2_content'][self.name] = ['no'] + self._content
+
+    def min_max_cyl_positions(self, tdata, pos):
+        pass
 
     def collect(self, startversuch, results, data):
         tdata = self.cut_data(startversuch, data, self._phases)
         res = { k:np.nan for k in self._content } # initialize results
         if not tdata.empty:
-            tdata['spread'] = tdata['Exhaust_TempCylMax'] - tdata['Exhaust_TempCylMin']
-            spreadmax = tdata['spread'].max()
+
             point = tdata['Exhaust_TempCylMax'].idxmax()
             if point == point: # test for not NaN
                 datapoint = tdata.loc[point]
-                tmax = tdata.at[datapoint.name,'Exhaust_TempCylMax']
-                tmin = tdata.at[datapoint.name,'Exhaust_TempCylMin']
+                te = list(datapoint[self.tcyl])
+                tmax = max(te); tmax_pos = te.index(tmax)
+                tmin = min(te); tmin_pos = te.index(tmin)
+                #tmax_org = tdata.at[datapoint.name,'Exhaust_TempCylMax']
+                #tmin_org = tdata.at[datapoint.name,'Exhaust_TempCylMin']
                 tspread = tmax - tmin
                 tpow  = tdata.at[datapoint.name,'Power_PowerAct']
-                res = {
-                        'ExhTempCylMax':tmax,
-                        'ExhSpreadMax':spreadmax,
-                        'ExhSpread_at_Max': tspread,  
-                        'Power_at_ExhTempCylMax': tpow
-                    }
+                res.update({'ExTCylMax':tmax,
+                            #'ExhTempCylMaxOrg':tmax_org,
+                            'ExTCylMaxNo':tmax_pos + 1,
+                            'ExTCylMin@Max':tmin,
+                            #'ExhTempCylMin_at_Max_org':tmin_org,
+                            'ExTCylMin@MaxNo':tmin_pos +1 ,
+                            'ExSpread@Max':tspread,  
+                            'PWR@ExTCylMax':tpow })
+
+            #ExhaustTempSpreadMax            
+            tdata['spread'] = tdata['Exhaust_TempCylMax'] - tdata['Exhaust_TempCylMin']
+            point = tdata['spread'].idxmax()
+            if point == point:
+                sdatapoint = tdata.loc[point]
+                ste = list(sdatapoint[self.tcyl])
+                stmax = max(ste); stmax_pos = ste.index(stmax)
+                stmin = min(ste); stmin_pos = ste.index(stmin)
+                spreadmax = tdata.at[sdatapoint.name,'spread']
+                spreadpow = tdata.at[sdatapoint.name,'Power_PowerAct']
+                res.update({'ExSpreadMax':spreadmax,
+                            'ExTCylMax@SpreadMax':stmax,
+                            'ExTCylMax@SpreadMaxNo':stmax_pos + 1,
+                            'ExTCylMin@SpreadMax':stmin,
+                            'ExTCylMin@SpreadMaxNo':stmin_pos + 1,
+                            'PWR@ExSpreadMax':spreadpow })
+
+            # # ExhaustTempMax            
+            # point = tdata['Exhaust_TempCylMax'].idxmax()
+            # if point == point: # test for not NaN
+            #     datapoint = tdata.loc[point]
+            #     tmax = tdata.at[datapoint.name,'Exhaust_TempCylMax']
+            #     tmin = tdata.at[datapoint.name,'Exhaust_TempCylMin']
+            #     tspread = tmax - tmin
+            #     tpow  = tdata.at[datapoint.name,'Power_PowerAct']
+            #     res.update({'ExhTempCylMax':tmax,
+            #                 'ExhSpread_at_Max': tspread,  
+            #                 'Power_at_ExhTempCylMax': tpow })
+
+            # # ExhaustTempSpreadMax            
+            # tdata['spread'] = tdata['Exhaust_TempCylMax'] - tdata['Exhaust_TempCylMin']
+            # point = tdata['spread'].idxmax()
+            # if point == point:
+            #     sdatapoint = tdata.loc[point] 
+            #     spreadmax = tdata.at[sdatapoint.name,'spread']
+            #     spreadpow = tdata.at[sdatapoint.name,'Power_PowerAct']
+            #     res.update({'ExhSpreadMax':spreadmax,
+            #                 'Power_at_ExhSpreadMax':spreadpow })
+
         sno = startversuch['no']
         results['starts'][sno].update(res) 
         return results 
+
+####################################
+### collect Tecjet Data
+####################################
 class Tecjet_Collector(Start_Data_Collector):
-    def __init__(self, phases, results, engine):
-        super().__init__(phases)
+    def __init__(self, results, engine):
+        self.phases = ['loadramp']
+        super().__init__(self.phases)
         self._e = engine
         self._vset += ['TecJet_Lambda1','TecJet_GasTemp1','TecJet_GasPress1','TecJet_GasDiffPress','TecJet_ValvePos1']
         self._content = ['TJ_GasDiffPressMin','TJ_GasPress1_at_Min','TJ_GasTemp1_at_Min','TJ_Pos_at_Min']
@@ -176,9 +257,13 @@ class Tecjet_Collector(Start_Data_Collector):
         results['starts'][sno].update(res)
         return results  
 
+####################################
+### collect Synchronization Data
+####################################
 class Sync_Current_Collector(Start_Data_Collector):
-    def __init__(self,phases, results, engine):
-        super().__init__(phases)
+    def __init__(self, results, engine):
+        self.phases = ['idle','synchronize']
+        super().__init__(self.phases)
         self._e = engine
         self._speed_nominal = self._e.Speed_nominal
         self._vset += ['Various_Values_SpeedAct','TecJet_Lambda1', 'Hyd_TempOil', 'Hyd_TempCoolWat']
@@ -214,6 +299,9 @@ class Sync_Current_Collector(Start_Data_Collector):
         sno = startversuch['no']
         results['starts'][sno].update(res)
         return results  
+
+
+# --------------------- helper functions ---------------------------#
 
 def loadramp_edge_detect(fsm, startversuch, debug=False, periodfactor=3, helplinefactor=0.8):
     # 1.4.2022 Aufgrund von Bautzen, der sehr langsam startet
@@ -254,6 +342,9 @@ def loadramp_edge_detect(fsm, startversuch, debug=False, periodfactor=3, helplin
     if duration < 5: # konstante Last ?
         return pd.DataFrame([]), startversuch['endtime'], 0.0, 0.0, 0.0
     return data, xmax, ymax, duration, ramprate 
+
+def msg_smalltxt(msg):
+    return f"{msg['severity']} {pd.to_datetime(int(msg['timestamp'])*1e6).strftime('%d.%m.%Y %H:%M:%S')}  {msg['name']} {msg['message']}"
 
 def xwhere(data,key,level):
     return data.iloc[data['datetime'][1:][np.array(data[key][1:]-level) * np.array(data[key][:-1]-level) < 0].index]

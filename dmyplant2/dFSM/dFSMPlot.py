@@ -41,9 +41,29 @@ def FSM_VLine(fig, txt, x_pos, y_pos, color='rgba(0,0,0,0.8)', line='solid', alp
     return fig    
 
 def FSM_add_Notations(fig,fsm,startversuch, sync_load=10):
+    # Nominal Power as horizontal line
+    fig.add_layout(Span(location=fsm._e['Power_PowerNominal'],dimension='width',x_range_name='default', y_range_name='0',line_color='green', line_dash='solid', line_alpha=0.4))
 
+    # max load if available
+    if 'maxload' in startversuch:
+        if startversuch['maxload'] == startversuch['maxload']:
+            fig.add_layout(Span(location=startversuch['maxload'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
+
+    # Nominal Speed as horizontal Line
+    fig.add_layout(Span(location=fsm._e['Para_Speed_Nominal'],dimension='width',x_range_name='default', y_range_name='1',line_color='blue', line_dash='solid', line_alpha=0.4)) 
+
+    # visualize calculated loadramp
+    if 'loadramp' in startversuch['startstoptiming']:
+        pow_nom = fsm._e['Power_PowerNominal']
+        x0 = startversuch['startstoptiming']['loadramp'][-1]['start']; y0 = sync_load / 100.0 * pow_nom # Sprung am Anfang?
+        default_ramp_rate = fsm._e['rP_Ramp_Set'] if fsm._e['rP_Ramp_Set'] != None else 0.625
+        default_ramp_duration = (1.0 - sync_load / 100.0) * 100.0 / default_ramp_rate # 0.9 * 100.0 / default_ramp_rate # Sprung am Anfang?
+        x1 = x0 + pd.Timedelta(default_ramp_duration, unit='sec'); y1 = pow_nom
+        ramp = fig.line(x=[x0,x1],y=[y0,y1], y_range_name='0', line_color='green', line_dash='solid', line_alpha=0.4, line_width=1)                            
+    return fig
+
+def FSM_add_StatesLines(fig,fsm,startversuch):
     # annotations: 1 vertical line for every state change ... descriptive text.
-    #sv_lines = [v for v in startversuch[filterFSM.vertical_lines_times] if v==v]
     lines = {
         k:{
             'time':startversuch['startstoptiming'][k][-1]['start'],
@@ -62,23 +82,6 @@ def FSM_add_Notations(fig,fsm,startversuch, sync_load=10):
 
     # Nominal Power as horizontal line
     fig.add_layout(Span(location=fsm._e['Power_PowerNominal'],dimension='width',x_range_name='default', y_range_name='0',line_color='green', line_dash='solid', line_alpha=0.4))
-
-    # max load if available
-    if 'maxload' in startversuch:
-        if startversuch['maxload'] == startversuch['maxload']:
-            fig.add_layout(Span(location=startversuch['maxload'],dimension='width',x_range_name='default', y_range_name='0',line_color='red', line_dash='solid', line_alpha=0.4)) 
-
-    # Nominal Speed as horizontal Line
-    fig.add_layout(Span(location=fsm._e.Speed_nominal,dimension='width',x_range_name='default', y_range_name='1',line_color='blue', line_dash='solid', line_alpha=0.4)) 
-
-    # visualize calculated loadramp
-    if 'loadramp' in startversuch['startstoptiming']:
-        pow_nom = fsm._e['Power_PowerNominal']
-        x0 = startversuch['startstoptiming']['loadramp'][-1]['start']; y0 = sync_load / 100.0 * pow_nom # Sprung am Anfang?
-        default_ramp_rate = fsm._e['rP_Ramp_Set'] if fsm._e['rP_Ramp_Set'] != None else 0.625
-        default_ramp_duration = (1.0 - sync_load / 100.0) * 100.0 / default_ramp_rate # 0.9 * 100.0 / default_ramp_rate # Sprung am Anfang?
-        x1 = x0 + pd.Timedelta(default_ramp_duration, unit='sec'); y1 = pow_nom
-        ramp = fig.line(x=[x0,x1],y=[y0,y1], y_range_name='0', line_color='green', line_dash='solid', line_alpha=0.4, line_width=1)                            
     return fig
 
 def FSM_add_Alarms2(fig,fsm,startversuch):

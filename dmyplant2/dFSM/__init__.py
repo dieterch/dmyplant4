@@ -25,6 +25,7 @@ from .dFSMPlot import (
     FSM_splotBC,
     FSM_VLine,
     FSM_add_Notations,
+    FSM_add_StatesLines,
     FSM_add_Alarms,
     FSM_add_Warnings,
 )
