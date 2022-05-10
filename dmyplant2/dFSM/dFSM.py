@@ -804,7 +804,7 @@ class FSMOperator:
         del(self.message_queue)
         gc.collect()                    
         self.runs_completed.append(self.act_run)
-        logging.debug('Run 0 completed')
+        logging.debug('0 Run completed')
 
 
 ####################################
@@ -861,7 +861,7 @@ class FSMOperator:
         del(self._messages)
         gc.collect()
         self.runs_completed.append(self.act_run)
-        logging.debug('Run 1 completed')
+        logging.debug('1 Run completed')
 
 
 ####################################
@@ -916,25 +916,25 @@ class FSMOperator:
                     if self.act_run in self.logrun:
                         logging.debug(f"2 SNO{sno:5d} start: {startversuch['starttime'].round('S')} to: {startversuch['endtime'].round('S')} load_data: {(t1-t0):0.1f} sec. v-----------------------------v")
                     if ((tfrom is not None) and (tto is not None)):
-                        logging.debug(f"2 SNO{sno:5d} tfrom:{tfrom} tto: {tto} tto-tfrom: {(tto-tfrom):.1f} lenght of data: {len(data)} empty? {data.empty}")
+                        logging.debug(f"2 SNO{sno:5d} tfrom: {pd.to_datetime(tfrom * 1e9).strftime('%d.%m.%Y %H:%M:%S')} tto: {pd.to_datetime(tto * 1e9).strftime('%d.%m.%Y %H:%M:%S')} tto-tfrom: {(tto-tfrom):.1f} lenght of data: {len(data)} empty? {data.empty}")
                     else:
                         logging.debug(f"2 SNO{sno:5d} tfrom:{tfrom} tto: {tto} tto-tfrom: {'None'} lenght of data: {len(data)} empty? {data.empty}")
 
                     if not data.empty:
                         if self.act_run in self.logrun:
-                            logging.debug(data[['Various_Values_SpeedAct','Power_PowerAct']].describe())
+                            logging.debug(f"2 SNO{sno:5d} Statistics:\n{data[['Various_Values_SpeedAct','Power_PowerAct']].describe()}")
                             if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
-                                    logging.debug(f"before run2 collectors, S {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'].strftime('%d.%m.%Y %H:%M:%S')} E {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'].strftime('%d.%m.%Y %H:%M:%S')}")
+                                    logging.debug(f"2 SNO{sno:5d} before run2 collectors, S {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'].strftime('%d.%m.%Y %H:%M:%S')} E {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'].strftime('%d.%m.%Y %H:%M:%S')}")
                             else:
-                                logging.debug(f"before run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
+                                logging.debug(f"2 SNO{sno:5d} before run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
                         self.results = self.run2_collectors_collect(startversuch, self.results, data)
                         phases = list(self.results['starts'][sno]['startstoptiming'].keys())
                         self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
                         if self.act_run in self.logrun:
                             if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
-                                logging.debug(f"after  run2 collectors, S {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'].strftime('%d.%m.%Y %H:%M:%S')} E {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'].strftime('%d.%m.%Y %H:%M:%S')}")
+                                logging.debug(f"2 SNO{sno:5d} after  run2 collectors, S {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'].strftime('%d.%m.%Y %H:%M:%S')} E {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'].strftime('%d.%m.%Y %H:%M:%S')}")
                             else:
-                                logging.debug(f"after  run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
+                                logging.debug(f"2 SNO{sno:5d} after  run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
 
                 except Exception as err:
                     err_str = f"\nDuring Run2 {startversuch['no']} from {startversuch['starttime'].round('S')} to {startversuch['endtime'].round('S')}, this Error occured: {err}"
@@ -946,4 +946,4 @@ class FSMOperator:
         if not silent:
             pbar.close()
         self.runs_completed.append(self.act_run)
-        logging.debug('Run 2 completed')
+        logging.debug('2 Run completed')
