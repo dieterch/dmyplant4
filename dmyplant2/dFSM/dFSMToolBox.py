@@ -97,7 +97,7 @@ class Target_load_Collector(Start_Data_Collector):
                     results['run2_failed'].append(startversuch)
                     return results
             duration = xmax.timestamp() - self.start
-            if duration > 5 * startversuch['loadramp']:         # avoid cases, where no meaningful targetload reached can be found in the data
+            if duration > 900:              #5 * startversuch['loadramp']:         # avoid cases, where no meaningful targetload reached can be found in the data
                     results['run2_failed'].append(startversuch)
                     return results                
             ramprate = ymax / duration
