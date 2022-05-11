@@ -913,6 +913,8 @@ class FSMOperator:
                     t0 = time.time()
                     data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=p_refresh, p_suffix='_run2', debug=False)
                     t1 = time.time()
+                    self.results['starts'][sno]['datasize'] = len(data)
+                    self.results['starts'][sno]['loadingtime'] = t1-t0
                     if self.act_run in self.logrun:
                         logging.debug(f"2 SNO{sno:5d} start: {startversuch['starttime'].round('S')} to: {startversuch['endtime'].round('S')} load_data: {(t1-t0):0.1f} sec. v-----------------------------v")
                     if ((tfrom is not None) and (tto is not None)):
