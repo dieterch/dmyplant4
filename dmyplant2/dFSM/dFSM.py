@@ -580,6 +580,7 @@ class FSMOperator:
             self.results['info'].update(self._e.description)
             with open(filename, 'wb') as handle:
                 pickle.dump(self.results, handle, protocol=5)
+                logging.info(f"Results successfully saved to {filename}")
         else:
             print('no results to save.')        
 
@@ -913,8 +914,8 @@ class FSMOperator:
                     t0 = time.time()
                     data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=p_refresh, p_suffix='_run2', debug=False)
                     t1 = time.time()
-                    self.results['starts'][sno]['datasize'] = len(data)
-                    self.results['starts'][sno]['loadingtime'] = t1-t0
+                    #self.results['starts'][sno]['datasize'] = len(data)
+                    #self.results['starts'][sno]['loadingtime'] = t1-t0
                     if self.act_run in self.logrun:
                         logging.debug(f"2 SNO{sno:5d} start: {startversuch['starttime'].round('S')} to: {startversuch['endtime'].round('S')} load_data: {(t1-t0):0.1f} sec. v-----------------------------v")
                     if ((tfrom is not None) and (tto is not None)):
@@ -924,7 +925,9 @@ class FSMOperator:
 
                     if not data.empty:
                         if self.act_run in self.logrun:
-                            logging.debug(f"2 SNO{sno:5d} Statistics:\n{data[['Various_Values_SpeedAct','Power_PowerAct']].describe()}")
+                            logging.debug(f"2 SNO{sno:5d} Power_PowerAct: Min:{data['Power_PowerAct'].min()} Max:{data['Power_PowerAct'].max()}")
+                            #Statistics:\n{data[['Various_Values_SpeedAct','Power_PowerAct']].describe()}")
+                            #print(data[['Various_Values_SpeedAct','Power_PowerAct']].min())
                             if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
                                     logging.debug(f"2 SNO{sno:5d} before run2 collectors, S {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'].strftime('%d.%m.%Y %H:%M:%S')} E {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'].strftime('%d.%m.%Y %H:%M:%S')}")
                             else:
