@@ -611,7 +611,7 @@ class MyPlant:
         return pd.DataFrame.from_records([self._reshape_asset(a) for a in res['data']])
 
     def _fetch_installed_base(self):
-        print("Download Installed Fleet DataBase, story locally")
+        #print("Download Installed Fleet DataBase, story locally")
         fields = ['serialNumber']
         properties =  [
             'Design Number','Engine Type','Engine Version','Engine Series','Engine ID',
