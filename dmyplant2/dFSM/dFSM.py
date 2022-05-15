@@ -16,7 +16,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from dmyplant2.dEngine import Engine
-from .dFSMToolBox import Target_load_Collector, Exhaust_temp_Collector, Tecjet_Collector, Sync_Current_Collector ,load_data, msg_smalltxt
+from .dFSMToolBox import Target_load_Collector, Exhaust_temp_Collector, Tecjet_Collector, Sync_Current_Collector, Oil_Start_Collector, load_data, msg_smalltxt
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -267,9 +267,9 @@ class ServiceSelectorFSM(FSM):
 ###########################################################################################
 class startstopFSM(FSM):
     # useful abbrevations
-    run2filter_content = ['no','success','mode','startpreparation','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','maxload','targetoperation','rampdown','coolrun','runout','A', 'W']
-    vertical_lines_times = ['startpreparation','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
-    start_timing_states =  ['startpreparation','starter','speedup','idle','synchronize','loadramp']
+    run2filter_content = ['no','success','mode','oilfilling','degasing','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','ramprate','maxload','targetoperation','rampdown','coolrun','runout','A', 'W']
+    vertical_lines_times = ['oilfilling','degasing','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
+    start_timing_states =  ['oilfilling','degasing','starter','speedup','idle','synchronize','loadramp']
     
     def __init__(self, operator, e):
         self.name = 'startstop'
@@ -279,9 +279,15 @@ class startstopFSM(FSM):
         self._initial_state = 'standstill'
         self._states = {
                 'standstill': State('standstill',[
-                    { 'trigger':'1231 Request module on', 'new-state': 'startpreparation'},            
+                    { 'trigger':'1231 Request module on', 'new-state': 'oilfilling'},            
                     ]),
-                'startpreparation': State('startpreparation',[
+                'oilfilling': State('oilfilling',[
+                    #{ 'trigger':'1249 Starter on', 'new-state': 'starter'},
+                    { 'trigger':'1262 Demand oil pump (DC) off', 'new-state': 'degasing'},
+                    { 'trigger':'1225 Service selector switch Off', 'new-state': 'standstill'},
+                    { 'trigger':'1232 Request module off', 'new-state': 'standstill'}
+                    ]),
+                'degasing': State('degasing',[
                     { 'trigger':'1249 Starter on', 'new-state': 'starter'},
                     { 'trigger':'1225 Service selector switch Off', 'new-state': 'standstill'},
                     { 'trigger':'1232 Request module off', 'new-state': 'standstill'}
@@ -330,7 +336,7 @@ class startstopFSM(FSM):
                     ]),
                 'runout': State('runout',[
                     { 'trigger':'3226 Ignition off', 'new-state':'standstill'},
-                    { 'trigger':'1231 Request module on', 'new-state': 'startpreparation'},            
+                    { 'trigger':'1231 Request module on', 'new-state': 'oilfilling'},            
                 ])
             }
 
@@ -381,7 +387,7 @@ class startstopFSM(FSM):
         # do in case of a statechange
         if nsvec[self.name].statechange:
             # start a 'on' cycle
-            if nsvec[self.name].currentstate == 'startpreparation':
+            if nsvec[self.name].currentstate == 'oilfilling':
                 results['stops'][-1]['endtime'] = nsvec[self.name].currentstate_start
                 results['stops'][-1]['A'] = len(results['stops'][-1]['alarms'])
                 results['stops'][-1]['W'] = len(results['stops'][-1]['warnings'])
@@ -394,7 +400,9 @@ class startstopFSM(FSM):
                     'starttime': nsvec[self.name].currentstate_start,
                     'endtime': pd.Timestamp(0),
                     'cumstarttime': pd.Timedelta(0),
-                    'startpreparation':np.nan,
+                    #'startpreparation':np.nan,
+                    'oilfilling':np.nan,
+                    'degasing':np.nan,
                     'starter':np.nan,
                     'speedup':np.nan,
                     'idle':np.nan,
@@ -780,7 +788,7 @@ class FSMOperator:
             self.nsvec = self.oilpumpHandler.call_trigger_states(self.nsvec)
 
             if self.nsvec[self.startstopHandler.name].statechange:
-                if self.nsvec[self.startstopHandler.name].currentstate == 'startpreparation':
+                if self.nsvec[self.startstopHandler.name].currentstate == 'oilfilling':
                     if self.act_run in self.logrun:
                         logging.debug(f"0 SNO{fsm0_starts_counter:5d}  v-----------------------------v")
                     self.nsvec['startno'] = fsm0_starts_counter
@@ -875,12 +883,15 @@ class FSMOperator:
         self.exhaust_temp_collector = Exhaust_temp_Collector(self.results, self._e)
         self.tecjet_collector = Tecjet_Collector(self.results, self._e)
         self.sync_current_collector = Sync_Current_Collector(self.results, self._e)
+        self.oil_start_collector = Oil_Start_Collector(self.results, self._e)
+        
 
     def run2_collectors_register(self, startversuch):
         vset, tfrom, tto = self.target_load_collector.register(startversuch, vset=[], tfrom=None, tto=None) #vset,tfrom,tto will be populated by the Collectors
         vset, tfrom, tto = self.exhaust_temp_collector.register(startversuch, vset, tfrom, tto)
         vset, tfrom, tto = self.tecjet_collector.register(startversuch, vset, tfrom, tto)
         vset, tfrom, tto = self.sync_current_collector.register(startversuch, vset, tfrom, tto)
+        vset, tfrom, tto = self.oil_start_collector.register(startversuch, vset, tfrom, tto)
         return vset, tfrom, tto 
 
     def run2_collectors_collect(self, startversuch, results, data):
@@ -888,6 +899,7 @@ class FSMOperator:
         results = self.exhaust_temp_collector.collect(startversuch, results, data)
         results = self.tecjet_collector.collect(startversuch, results, data)
         results = self.sync_current_collector.collect(startversuch, results, data)
+        results = self.oil_start_collector.collect(startversuch, results, data)
         return results
 
     def run2(self, silent=False, debug=False, p_refresh=False):

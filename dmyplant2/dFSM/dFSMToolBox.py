@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 import numpy as np
+import logging
 from .dFSMData import load_data
 
 
@@ -23,6 +24,7 @@ class Start_Data_Collector:
         else:
             self.start = None
             self.end = None
+            logging.error(f"dFSMToolBox, phase_timing: {phases} not in startversuch['startstoptiming']")
         return ok
 
     def cut_data(self, startversuch, data, phases):
@@ -300,6 +302,32 @@ class Sync_Current_Collector(Start_Data_Collector):
         results['starts'][sno].update(res)
         return results  
 
+
+####################################
+### collect Oil Start Data
+####################################
+class Oil_Start_Collector(Start_Data_Collector):
+    def __init__(self, results, engine):
+        self.phases = ['degasing','starter','speedup','idle','synchronize']
+        super().__init__(self.phases)
+        self._e = engine
+        self._speed_nominal = self._e.Speed_nominal
+        self._vset += ['Hyd_TempOil','Hyd_PressOil','Hyd_PressOilDif']
+        self._content = ['PressOilMax','PressOilDifMax','TempOil_min']
+        # define table results:
+        results['run2_content']['lubrication'] = ['no'] + self._content
+
+    def collect(self, startversuch, results, data):
+        oildata = self.cut_data(startversuch, data, self._phases) 
+        res = { k:np.nan for k in self._content } # initialize results
+        if not oildata.empty:
+            # lookup highest Oilpressure in oildata
+            res['PressOilMax'] = oildata['Hyd_PressOil'].max()
+            res['PressOilDifMax'] = oildata['Hyd_PressOilDif'].max()
+            res['TempOil_min'] = oildata['Hyd_TempOil'].min()
+        sno = startversuch['no']
+        results['starts'][sno].update(res)
+        return results  
 
 # --------------------- helper functions ---------------------------#
 
