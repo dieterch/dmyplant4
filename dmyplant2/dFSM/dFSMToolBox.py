@@ -24,12 +24,12 @@ class Start_Data_Collector:
         else:
             self.start = None
             self.end = None
-            logging.error(f"dFSMToolBox, phase_timing: {phases} not in startversuch['startstoptiming']")
+            logging.debug(f"dFSMToolBox, phase_timing: {phases} not in startversuch['startstoptiming']")
         return ok
 
-    def cut_data(self, startversuch, data, phases):
+    def cut_data(self, startversuch, data, phases, pre_phase=0, post_phase=0):
         if self.phase_timing(startversuch, phases):
-            return data[(data.time > int(self.start * 1000)) & (data.time < int(self.end * 1000))].reset_index(drop=True)
+            return data[(data.time > int((self.start - pre_phase) * 1000)) & (data.time < int((self.end + post_phase) * 1000))].reset_index(drop=True)
         else:
             return pd.DataFrame([])
 
@@ -155,9 +155,6 @@ class Exhaust_temp_Collector(Start_Data_Collector):
                         'PWR@ExSpreadMax']
         results['run2_content'][self.name] = ['no'] + self._content
 
-    def min_max_cyl_positions(self, tdata, pos):
-        pass
-
     def collect(self, startversuch, results, data):
         tdata = self.cut_data(startversuch, data, self._phases)
         res = { k:np.nan for k in self._content } # initialize results
@@ -198,28 +195,6 @@ class Exhaust_temp_Collector(Start_Data_Collector):
                             'ExTCylMin@SpreadMax':stmin,
                             'ExTCylMin@SpreadMaxNo':stmin_pos + 1,
                             'PWR@ExSpreadMax':spreadpow })
-
-            # # ExhaustTempMax            
-            # point = tdata['Exhaust_TempCylMax'].idxmax()
-            # if point == point: # test for not NaN
-            #     datapoint = tdata.loc[point]
-            #     tmax = tdata.at[datapoint.name,'Exhaust_TempCylMax']
-            #     tmin = tdata.at[datapoint.name,'Exhaust_TempCylMin']
-            #     tspread = tmax - tmin
-            #     tpow  = tdata.at[datapoint.name,'Power_PowerAct']
-            #     res.update({'ExhTempCylMax':tmax,
-            #                 'ExhSpread_at_Max': tspread,  
-            #                 'Power_at_ExhTempCylMax': tpow })
-
-            # # ExhaustTempSpreadMax            
-            # tdata['spread'] = tdata['Exhaust_TempCylMax'] - tdata['Exhaust_TempCylMin']
-            # point = tdata['spread'].idxmax()
-            # if point == point:
-            #     sdatapoint = tdata.loc[point] 
-            #     spreadmax = tdata.at[sdatapoint.name,'spread']
-            #     spreadpow = tdata.at[sdatapoint.name,'Power_PowerAct']
-            #     res.update({'ExhSpreadMax':spreadmax,
-            #                 'Power_at_ExhSpreadMax':spreadpow })
 
         sno = startversuch['no']
         results['starts'][sno].update(res) 
@@ -301,7 +276,6 @@ class Sync_Current_Collector(Start_Data_Collector):
         sno = startversuch['no']
         results['starts'][sno].update(res)
         return results  
-
 
 ####################################
 ### collect Oil Start Data

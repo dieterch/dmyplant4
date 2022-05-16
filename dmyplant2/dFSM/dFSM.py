@@ -394,6 +394,7 @@ class startstopFSM(FSM):
                 # apends a new record to the Starts list.
                 results['starts'].append({
                     'run2':False,
+                    'run4':False,
                     'no':results['starts_counter'],
                     'success': False,
                     'mode':nsvec['service_selector'],
@@ -964,3 +965,84 @@ class FSMOperator:
             pbar.close()
         self.runs_completed.append(self.act_run)
         logging.debug('2 Run completed')
+
+####################################
+### Finite State Machine |     Run 3
+### analyse targetoperation
+####################################
+
+
+####################################
+### Finite State Machine |     Run 4
+### analyse engine stop
+####################################
+
+    def run4_collectors_setup(self):
+        pass
+        
+    def run4_collectors_register(self, startversuch):
+        vset = []; tfrom=None; tto=None
+        return vset, tfrom, tto 
+
+    def run4_collectors_collect(self, startversuch, results, data):
+        return results
+
+    def run4(self, silent=False, debug=False, p_refresh=False):
+        """Statemachine Operator Run 4 - uses timings collected in previous runs to analyse data
+        silent (Boolean): whether a progress bar is visible or not. 
+        """
+        self.act_run = 4
+        self.run4_collectors_setup()
+        self.results['run4_failed'] = []
+
+        if not silent:
+            pbar = tqdm(total=len(self.results['starts']), ncols=80, mininterval=2, unit=' starts', desc="FSM4", file=sys.stdout)
+
+        for i, startversuch in enumerate(self.results['starts']):
+            sno = startversuch['no']
+            if not self.results['starts'][sno]['run4']:
+                self.results['starts'][sno]['run4'] = True
+                try:
+                    # collect dataItems & phases, align an load data in one request to myplant per Start. 
+                    vset, tfrom, tto = self.run4_collectors_register(startversuch)
+                    t0 = time.time()
+                    data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=p_refresh, p_suffix='_run4', debug=False)
+                    t1 = time.time()
+                    #self.results['starts'][sno]['datasize'] = len(data)
+                    #self.results['starts'][sno]['loadingtime'] = t1-t0
+                    if self.act_run in self.logrun:
+                        logging.debug(f"4 SNO{sno:5d} start: {startversuch['starttime'].round('S')} to: {startversuch['endtime'].round('S')} load_data: {(t1-t0):0.1f} sec. v-----------------------------v")
+                    if ((tfrom is not None) and (tto is not None)):
+                        logging.debug(f"4 SNO{sno:5d} tfrom: {pd.to_datetime(tfrom * 1e9).strftime('%d.%m.%Y %H:%M:%S')} tto: {pd.to_datetime(tto * 1e9).strftime('%d.%m.%Y %H:%M:%S')} tto-tfrom: {(tto-tfrom):.1f} lenght of data: {len(data)} empty? {data.empty}")
+                    else:
+                        logging.debug(f"4 SNO{sno:5d} tfrom:{tfrom} tto: {tto} tto-tfrom: {'None'} lenght of data: {len(data)} empty? {data.empty}")
+
+                    if not data.empty:
+                        if self.act_run in self.logrun:
+                            logging.debug(f"4 SNO{sno:5d} Power_PowerAct: Min:{data['Power_PowerAct'].min()} Max:{data['Power_PowerAct'].max()}")
+                            #Statistics:\n{data[['Various_Values_SpeedAct','Power_PowerAct']].describe()}")
+                            #print(data[['Various_Values_SpeedAct','Power_PowerAct']].min())
+                            if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
+                                    logging.debug(f"4 SNO{sno:5d} before run4 collectors, S {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'].strftime('%d.%m.%Y %H:%M:%S')} E {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'].strftime('%d.%m.%Y %H:%M:%S')}")
+                            else:
+                                logging.debug(f"4 SNO{sno:5d} before run4 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
+                        self.results = self.run4_collectors_collect(startversuch, self.results, data)
+                        #phases = list(self.results['starts'][sno]['startstoptiming'].keys())
+                        #self.startstopHandler._harvest_timings(self.results['starts'][sno], phases, self.results)
+                        #if self.act_run in self.logrun:
+                        #    if 'loadramp' in self.results['starts'][sno]['startstoptiming']:
+                        #        logging.debug(f"2 SNO{sno:5d} after  run2 collectors, S {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['start'].strftime('%d.%m.%Y %H:%M:%S')} E {self.results['starts'][sno]['startstoptiming']['loadramp'][-1]['end'].strftime('%d.%m.%Y %H:%M:%S')}")
+                        #    else:
+                        #        logging.debug(f"2 SNO{sno:5d} after  run2 collectors, {pf(list(self.results['starts'][sno]['startstoptiming'].keys()))}")
+
+                except Exception as err:
+                    err_str = f"\nDuring Run4 {startversuch['no']} from {startversuch['starttime'].round('S')} to {startversuch['endtime'].round('S')}, this Error occured: {err}"
+                    logging.error(traceback.format_exc())
+
+            if not silent:
+                pbar.update()
+                        
+        if not silent:
+            pbar.close()
+        self.runs_completed.append(self.act_run)
+        logging.debug('4 Run completed')
