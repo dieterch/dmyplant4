@@ -282,7 +282,7 @@ class startstopFSM(FSM):
                     { 'trigger':'1231 Request module on', 'new-state': 'oilfilling'},            
                     ]),
                 'oilfilling': State('oilfilling',[
-                    #{ 'trigger':'1249 Starter on', 'new-state': 'starter'},
+                    { 'trigger':'1249 Starter on', 'new-state': 'starter'},
                     { 'trigger':'1262 Demand oil pump (DC) off', 'new-state': 'degasing'},
                     { 'trigger':'1225 Service selector switch Off', 'new-state': 'standstill'},
                     { 'trigger':'1232 Request module off', 'new-state': 'standstill'}
