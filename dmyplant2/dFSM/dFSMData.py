@@ -69,7 +69,8 @@ def _resample_data(fsm, data, startversuch):
 # load data in  1 chunk
 ###################################################################################
 # TODO: make it timezone aware
-def get_cycle_data(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, reduce=True, pre_period=5*60, post_period=21*60, t_range=(0,100), p_refresh=False):
+#def get_cycle_data(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, reduce=True, pre_period=5*60, post_period=21*60, t_range=(0,100), p_refresh=False):
+def get_cycle_data(fsm,startversuch, max_length=None, min_length=None, cycletime=None, silent=False, p_data=None, reduce=True, pre_period=65*60, post_period=81*60, t_range=(0,100), p_refresh=False):
     tns = pd.to_datetime((startversuch['starttime'].timestamp() - pre_period + t_range[0]/100.0 * ((startversuch['endtime']  - startversuch['starttime']).seconds + pre_period + post_period)), unit='s')
     tne = pd.to_datetime((startversuch['starttime'].timestamp() - pre_period + t_range[1]/100.0 * ((startversuch['endtime']  - startversuch['starttime']).seconds + pre_period + post_period)), unit='s')
     t0 = tns.timestamp() * 1e3
