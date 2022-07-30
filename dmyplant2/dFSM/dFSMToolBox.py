@@ -79,7 +79,7 @@ class Target_load_Collector(Start_Data_Collector):
         super().__init__(self.phases)
         self._e = engine
         self.ratedload = self._e['Power_PowerNominal']
-        self._vset += ['Power_PowerAct']
+        self._vset += ['Power_PowerAct','Aux_PreChambDifPress']
         self.period_factor=period_factor
         self.helplinefactor=helplinefactor
 
@@ -94,6 +94,7 @@ class Target_load_Collector(Start_Data_Collector):
                 try:
                     maxload = data['Power_PowerAct'].max()
                     xmax, ymax = self.left_upper_edge('Power_PowerAct', data, self.helplinefactor, xmax, ymax)
+                    PreChambDifPress_min = data['Aux_PreChambDifPress'].min()
                 except Exception as err:
                     # Berechnung sAbbrechen
                     results['run2_failed'].append(startversuch)
@@ -113,7 +114,8 @@ class Target_load_Collector(Start_Data_Collector):
                 results['starts'][sno]['startstoptiming']['targetoperation'][0]['start'] = xmax
             results['starts'][sno]['targetload'] = ymax
             results['starts'][sno]['ramprate'] = ramprate / self.ratedload * 100.0
-            results['starts'][sno]['maxload'] = maxload
+            results['starts'][sno]['maxload'] = maxload            
+            results['starts'][sno]['PCDifPress_min'] = PreChambDifPress_min
         return results
 
     def register(self,startversuch,vset=[],tfrom=None,tto=None):
