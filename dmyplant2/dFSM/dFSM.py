@@ -267,7 +267,8 @@ class ServiceSelectorFSM(FSM):
 ###########################################################################################
 class startstopFSM(FSM):
     # useful abbrevations
-    run2filter_content = ['no','success','mode','oilfilling','degasing','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','PCDifPress_min','ramprate','maxload','targetoperation','rampdown','coolrun','runout','A', 'W']
+    # run2filter_content = ['no','success','mode','oilfilling','degasing','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','PCDifPress_min','ramprate','maxload','targetoperation','rampdown','coolrun','runout','A', 'W']
+    run2filter_content = ['no','success','mode','oilfilling','degasing','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetoperation','rampdown','coolrun','runout','A', 'W']
     vertical_lines_times = ['oilfilling','degasing','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
     start_timing_states =  ['oilfilling','degasing','starter','speedup','idle','synchronize','loadramp']
     

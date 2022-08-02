@@ -75,13 +75,24 @@ class Start_Data_Collector:
 ####################################################
 class Target_load_Collector(Start_Data_Collector):
     def __init__(self, results, engine, period_factor=3, helplinefactor=0.8):
+        self.name = 'startstop'
+
+        # where ?
         self.phases = ['loadramp']
         super().__init__(self.phases)
+
+        # what ?
         self._e = engine
         self.ratedload = self._e['Power_PowerNominal']
         self._vset += ['Power_PowerAct','Aux_PreChambDifPress']
         self.period_factor=period_factor
         self.helplinefactor=helplinefactor
+
+        # results to collect:
+        # timings under 'startstop' are already collected in previous runs.
+        # run2 changes or additions are added here
+        self._content = ['targetload','PCDifPress_min','ramprate','maxload']
+        results['run2_content']['startstop'] += self._content #add run2 results
 
     def collect(self, startversuch ,results, data):
         xmax = startversuch['endtime'] # set xmax to the latest possible time to avoid duration to be 0.
