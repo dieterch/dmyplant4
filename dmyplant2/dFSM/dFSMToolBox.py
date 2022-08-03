@@ -75,15 +75,27 @@ class Start_Data_Collector:
 ####################################################
 class Target_load_Collector(Start_Data_Collector):
     def __init__(self, results, engine, period_factor=3, helplinefactor=0.8):
+        self.name = 'startstop'
+
+        # where ?
         self.phases = ['loadramp']
         super().__init__(self.phases)
+
+        # what ?
         self._e = engine
         self.ratedload = self._e['Power_PowerNominal']
-        self._vset += ['Power_PowerAct','Aux_PreChambDifPress']
+        self._vset += ['Power_PowerAct','Aux_PreChambDifPress','Various_Values_PressBoost']
         self.period_factor=period_factor
         self.helplinefactor=helplinefactor
 
+        # results to collect:
+        # timings under 'startstop' are already collected in previous runs.
+        # run2 changes or additions are added here
+        self._content = ['targetload','PCDifPress_min','PressBoost_max','ramprate','maxload']
+        results['run2_content']['startstop'] += self._content #add run2 results
+
     def collect(self, startversuch ,results, data):
+        res = { k:np.nan for k in self._content } # initialize results
         xmax = startversuch['endtime'] # set xmax to the latest possible time to avoid duration to be 0.
         ymax = 0.0
         if 'loadramp' in startversuch['startstoptiming']:
@@ -95,6 +107,7 @@ class Target_load_Collector(Start_Data_Collector):
                     maxload = data['Power_PowerAct'].max()
                     xmax, ymax = self.left_upper_edge('Power_PowerAct', data, self.helplinefactor, xmax, ymax)
                     PreChambDifPress_min = data['Aux_PreChambDifPress'].min()
+                    PressBoost_max = data['Various_Values_PressBoost'].max()
                 except Exception as err:
                     # Berechnung sAbbrechen
                     results['run2_failed'].append(startversuch)
@@ -116,6 +129,7 @@ class Target_load_Collector(Start_Data_Collector):
             results['starts'][sno]['ramprate'] = ramprate / self.ratedload * 100.0
             results['starts'][sno]['maxload'] = maxload            
             results['starts'][sno]['PCDifPress_min'] = PreChambDifPress_min
+            results['starts'][sno]['PressBoost_max'] = PressBoost_max
         return results
 
     def register(self,startversuch,vset=[],tfrom=None,tto=None):
