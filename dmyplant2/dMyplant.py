@@ -13,6 +13,7 @@ import pickle
 import pandas as pd
 import numpy as np
 from pprint import pprint as pp
+import logging
 
 try:
     import httplib # type: ignore comment;
@@ -258,6 +259,44 @@ class MyPlant:
     def username(self):
         return self.deBase64(self._name)
 
+    # def login(self):
+    #     """Login to MyPlant"""
+    #     if self._session is None:
+    #         logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
+    #         self._session = requests.session()
+    #         headers = {'Content-Type': 'application/json', }
+    #         body = {
+    #             "username": self.deBase64(self._name),
+    #             "password": self.deBase64(self._password)
+    #         }
+    #         loop = 1
+    #         try:
+    #             while loop < 3:
+    #                 response = self._session.post(burl + "/auth",
+    #                                               data=json.dumps(body), headers=headers)
+    #                 if response.status_code == 200:
+    #                     logging.debug(f'login {self.deBase64(self._name)} successful.')
+    #                     #self.r = response.json()
+    #                     self._token = response.json()['token']
+    #                     self._appuser_token = self._token
+    #                     break
+    #                 else:
+    #                     logging.error(
+    #                         f'login failed with response code {response.status_code}')
+    #                 loop += 1
+    #                 logging.error(f'Myplant login attempt #{loop}')
+    #                 time.sleep(1)
+    #             if loop >= 3:
+    #                 logging.error(f'Login {self.deBase64(self._name)} failed')
+    #                 raise Exception(
+    #                     f'Login {self.deBase64(self._name)} failed')
+                    
+    #         except:
+    #             self.del_Credentials()
+    #             raise Exception("Login Failed, invalid Credentials ?")
+
+# CHATGPT verbesserungen :
+#################################################################
     def login(self):
         """Login to MyPlant"""
         if self._session is None:
@@ -268,62 +307,22 @@ class MyPlant:
                 "username": self.deBase64(self._name),
                 "password": self.deBase64(self._password)
             }
-            loop = 1
-            try:
-                while loop < 3:
-                    response = self._session.post(burl + "/auth",
-                                                  data=json.dumps(body), headers=headers)
-                    if response.status_code == 200:
-                        logging.debug(f'login {self.deBase64(self._name)} successful.')
-                        #self.r = response.json()
-                        self._token = response.json()['token']
-                        self._appuser_token = self._token
-                        break
-                    else:
-                        logging.error(
-                            f'login failed with response code {response.status_code}')
-                    loop += 1
-                    logging.error(f'Myplant login attempt #{loop}')
+
+            for i in range(3):
+                response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
+
+                if response.status_code == 200:
+                    logging.debug(f'login {self.deBase64(self._name)} successful.')
+                    self._token = response.json()['token']
+                    self._appuser_token = self._token
+                    break
+                else:
+                    logging.error(f'Myplant login attempt #{i + 1} failed with response code {response.status_code}')
                     time.sleep(1)
-                if loop >= 3:
-                    logging.error(f'Login {self.deBase64(self._name)} failed')
-                    raise Exception(
-                        f'Login {self.deBase64(self._name)} failed')
-                    
-            except:
+            else:
+                logging.error(f'Login {self.deBase64(self._name)} failed after 3 attempts.')
                 self.del_Credentials()
-                raise Exception("Login Failed, invalid Credentials ?")
-
-# CHATGPT verbesserungen :
-#################################################################
-# def login(self):
-#     """Login to MyPlant"""
-#     if self._session is None:
-#         logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
-#         self._session = requests.session()
-#         headers = {'Content-Type': 'application/json', }
-#         body = {
-#             "username": self.deBase64(self._name),
-#             "password": self.deBase64(self._password)
-#         }
-
-#         for i in range(3):
-#             response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
-
-#             if response.status_code == 200:
-#                 logging.debug(f'login {self.deBase64(self._name)} successful.')
-#                 self._token = response.json()['token']
-#                 self._appuser_token = self._token
-#                 break
-#             else:
-#                 logging.error(f'Myplant login attempt #{i + 1} failed with response code {response.status_code}')
-#                 time.sleep(1)
-#         else:
-#             logging.error(f'Login {self.deBase64(self._name)} failed after 3 attempts.')
-#             self.del_Credentials()
-#             raise Exception(f"Login Failed, invalid Credentials ?")
-
-
+                raise Exception(f"Login Failed, invalid Credentials ?")
 
     def logout(self):
         """Logout from Myplant and release self._session"""
@@ -331,19 +330,45 @@ class MyPlant:
             self._session.close()
             self._session = None
 
+    # def fetchdata(self, url):
+    #     """login and return data based on url"""
+    #     self.login()
+    #     logging.debug(f'url: {url}')
+    #     response = self._session.get(burl + url)
+
+    #     if response.status_code == 200:
+    #         logging.debug(f'fetchdata: download successful')
+    #         res = response.json()
+    #         return res
+    #     else:
+    #         logging.error(
+    #             f"Code: {url}, {response.status_code}, {errortext.get(response.status_code,'no HTTP Error text available.')}")
+
+
+############# CHATGPT variante
     def fetchdata(self, url):
         """login and return data based on url"""
         self.login()
         logging.debug(f'url: {url}')
-        response = self._session.get(burl + url)
 
-        if response.status_code == 200:
-            logging.debug(f'fetchdata: download successful')
-            res = response.json()
-            return res
-        else:
-            logging.error(
-                f"Code: {url}, {response.status_code}, {errortext.get(response.status_code,'no HTTP Error text available.')}")
+        retries = 0
+        while retries < 3:
+            try:
+                response = self._session.get(burl + url, timeout=30)
+                response.raise_for_status()
+
+                logging.debug(f'fetchdata: download successful')
+                res = response.json()
+                return res
+            except requests.exceptions.RequestException as e:
+                logging.error(f'Request failed: {e}')
+                if isinstance(e, requests.exceptions.Timeout):
+                    self.login() # login again if a timeout occurred
+                retries += 1
+                time.sleep(5)
+        logging.error(f'Failed to fetch data from {url} after 3 attempts')
+        return None
+#############
 
 
     def _asset_data(self, serialNumber):
