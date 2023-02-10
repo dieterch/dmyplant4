@@ -105,18 +105,18 @@ class LoadrampStateV2(State):
         if self._operator.act_run in self._operator.logrun:
             logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'trigger_on_vector':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(msg)}")
 
-        if self._full_load_timestamp is not None:
-            if msg['timestamp'] > int(self._full_load_timestamp + 2 * self._default_ramp_duration * 1e3): # Emergency, message times got most likely confused.
-                if self._operator.act_run == 1:
-                    new_msg = copy.deepcopy(msg)
-                    new_msg['name'] = '9047'
-                    new_msg['message'] = 'Target load reached (emergency)'
-                    new_msg['timestamp'] = msg['timestamp']
-                    new_msg['severity'] = 600
-                    if self._operator.act_run in self._operator.logrun:
-                        logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> emergency +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(new_msg)}")
-                    vector.statechange = True
-                    return vector #emergency exit
+        # if self._full_load_timestamp is not None:
+        #     if msg['timestamp'] > int(self._full_load_timestamp + 2 * self._default_ramp_duration * 1e3): # Emergency, message times got most likely confused.
+        #         if self._operator.act_run == 1:
+        #             new_msg = copy.deepcopy(msg)
+        #             new_msg['name'] = '9047'
+        #             new_msg['message'] = 'Target load reached (emergency)'
+        #             new_msg['timestamp'] = msg['timestamp']
+        #             new_msg['severity'] = 600
+        #             if self._operator.act_run in self._operator.logrun:
+        #                 logging.debug(f"{self._operator.act_run} SNO{self._operator.nsvec['startno']:5d}, {'> emergency +':21}, full_load_timestamp {str(self._full_load_timestamp):15},{vector},{msg_smalltxt(new_msg)}")
+        #             vector.statechange = True
+        #             return vector #emergency exit
 
         # calculate the end of ramp time in the first call, triggered if full_load_timestamp is None.
         if self._full_load_timestamp == None:
@@ -925,6 +925,9 @@ class FSMOperator:
                 try:
                     # collect dataItems & phases, align an load data in one request to myplant per Start. 
                     vset, tfrom, tto = self.run2_collectors_register(startversuch)
+                    if tto is not None and tfrom is not None:
+                        if tto - tfrom > 900:      # workaround for long period bug.
+                            tto = tfrom + 900
                     t0 = time.time()
                     data = load_data(self, cycletime=1, tts_from=tfrom, tts_to=tto, silent=True, p_data=vset, p_forceReload=p_refresh, p_suffix='_run2', debug=False)
                     t1 = time.time()
