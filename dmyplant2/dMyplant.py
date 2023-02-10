@@ -589,7 +589,7 @@ class MyPlant:
         for key, value in rec.items():
             if type(value) == list:
                 for lrec in value:
-                    ret[lrec['name']] = lrec['value']
+                    ret[lrec['name']] = lrec.get('value',None)
             else:
                 ret[key] = value
         return ret
