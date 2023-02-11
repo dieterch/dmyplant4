@@ -53,7 +53,8 @@ class Validation:
             except:
                 print("Engine Instances cannot not be created.")
                 sys.exit(1)
-            self._engines.append(e)
+            if e is not None:
+                self._engines.append(e)
             log = f"{i:02d} {e}"
             logging.info(log)
             if cui_log:
@@ -117,7 +118,7 @@ class Validation:
     @ property
     def dashboard(self):
         """ Validation Dasboard as Pandas DataFrame """
-        ldash = [e.dash for e in self._engines]
+        ldash = [e.dash for e in self._engines if e is not None]
         return pd.DataFrame(ldash)
 
     @ property
@@ -246,7 +247,7 @@ class Validation:
         # Read Values defined in tdef from Myplant into a pd.dataframe
         tdef = {161: 'Count_OpHour', 102: 'Power_PowerAct', 1258: 'OperationalCondition', 19074: 'Various_Bits_CollAlarm'}
         
-        ntable = [[e] + [e['id']] + [e.get_dataItem(v) for v in tdef.values()] for e in self.engines]
+        ntable = [[e] + [e['id']] + [e.get_dataItem(v) for v in tdef.values()] for e in self.engines if e is not None]
         dft = pd.DataFrame(ntable, columns=['Name','id'] + list(tdef.values()))
 
         #pp(dft)

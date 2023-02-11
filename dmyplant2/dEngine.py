@@ -31,17 +31,20 @@ class Engine:
         """load data from Installed Fleet file,
         note this date is not automatically updated.
         to update, call mp._fetch_installed_base(self):
-
+        
         Args:
             mp : Myplant Instance
             sn : serialNumber
-
+        
         Returns:
             _type_: _description_
         """
         f = mp.get_installed_fleet()
         df = f[f['serialNumber'] == str(sn)]
-        return df.to_dict(orient='records')[0]
+        if len(df) > 0:  # Add this condition
+            return df.to_dict(orient='records')[0]
+        else:
+            return None  # Return None if list is empty
 
     @classmethod
     def _list_cached_validations(cls):
@@ -152,26 +155,28 @@ class Engine:
 
         if not ('Asset ID' in eng):
             edf = cls.lookup_Installed_Fleet(mp, eng['serialNumber'])
-            eng['Asset ID'] = edf['id']
+            if edf is not None:
+                eng['Asset ID'] = edf['id']
+                if os.path.exists(vfn):
+                    validations = load_pkl(vfn)
+                if validations and ((not eng['serialNumber'] in validations) or (validations[eng['serialNumber']]['source'] != 'from_eng')):
+                    eng['source'] = 'from_eng'
+                    validations[eng['serialNumber']] = eng
+                    save_pkl(vfn, validations)
 
-        if os.path.exists(vfn):
-            validations = load_pkl(vfn)
-        if validations and ((not eng['serialNumber'] in validations) or (validations[eng['serialNumber']]['source'] != 'from_eng')):
-            eng['source'] = 'from_eng'
-            validations[eng['serialNumber']] = eng
-            save_pkl(vfn, validations)
-
-        return cls(
-            mp, 
-            eng['Asset ID'],
-            eng['serialNumber'], 
-            eng['n'],
-            eng['Validation Engine'],
-            eng['val start'],
-            eng['oph@start'],
-            eng['starts@start'] if 'starts@start' in eng else 0,
-            eng['Old Parts first replaced OPH'] if 'Old Parts first replaced OPH' in eng else None,
-            eng['Old Parts replaced before upgrade'] if 'Old Parts replaced before upgrade' in eng else None)
+                return cls(
+                    mp, 
+                    eng['Asset ID'],
+                    eng['serialNumber'], 
+                    eng['n'],
+                    eng['Validation Engine'],
+                    eng['val start'],
+                    eng['oph@start'],
+                    eng['starts@start'] if 'starts@start' in eng else 0,
+                    eng['Old Parts first replaced OPH'] if 'Old Parts first replaced OPH' in eng else None,
+                    eng['Old Parts replaced before upgrade'] if 'Old Parts replaced before upgrade' in eng else None)
+        else: 
+            return None
 
     def __init__(self, mp, id=None, sn=None, n=None, name=None, valstart = None, oph_start=None, start_start=None, 
         Old_Parts_first_replaced_OPH=None, Old_Parts_replaced_before_upgrade=None):
@@ -231,6 +236,9 @@ class Engine:
             if cachexpired or not checkpickle:
                 
                 local_asset = self._mp._asset_data(self._sn)
+                if local_asset is None:
+                    print(f"dmyplant2.dEngine: {name}, No Data on Myplant available.")
+                    return 
                 #local_asset = self._mp._asset_data_graphQL(self._id)
 
                 #logging.debug(f"{temp.eng['Validation Engine']}, Engine Data fetched from Myplant")
