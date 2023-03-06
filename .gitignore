@@ -139,3 +139,6 @@ dmypy.json
 .vscode/
 /data
 ~*
+.credentials
+Examples/data
+Installed_base.pkl
