@@ -3,7 +3,6 @@ import arrow
 import json
 import base64
 import requests
-import pyotp
 import logging
 import os
 import sys
