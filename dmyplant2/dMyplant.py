@@ -3,6 +3,7 @@ import arrow
 import json
 import base64
 import requests
+import pyotp
 import logging
 import os
 import sys
@@ -295,8 +296,37 @@ class MyPlant:
     #             self.del_Credentials()
     #             raise Exception("Login Failed, invalid Credentials ?")
 
-# CHATGPT verbesserungen :
-#################################################################
+# # CHATGPT verbesserungen :
+# #################################################################
+#     def login(self):
+#         """Login to MyPlant"""
+#         if self._session is None:
+#             logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
+#             self._session = requests.session()
+#             headers = {'Content-Type': 'application/json', }
+#             body = {
+#                 "username": self.deBase64(self._name),
+#                 "password": self.deBase64(self._password)
+#             }
+
+#             for i in range(3):
+#                 response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
+
+#                 if response.status_code == 200:
+#                     logging.debug(f'login {self.deBase64(self._name)} successful.')
+#                     self._token = response.json()['token']
+#                     self._appuser_token = self._token
+#                     break
+#                 else:
+#                     logging.error(f'Myplant login attempt #{i + 1} failed with response code {response.status_code}')
+#                     time.sleep(1)
+#             else:
+#                 logging.error(f'Login {self.deBase64(self._name)} failed after 3 attempts.')
+#                 self.del_Credentials()
+#                 raise Exception(f"Login Failed, invalid Credentials ?")
+
+# # with totp MFA - code is failing to authorize currently  :
+# #################################################################
     def login(self):
         """Login to MyPlant"""
         if self._session is None:
@@ -311,6 +341,12 @@ class MyPlant:
             for i in range(3):
                 response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
 
+                # Generate a TOTP code using the secret key from your Authenticator app
+                print("Please enter your authenticator code: ")
+                totp_secret = input()
+                body_mfa = {"username": body['username'], "challenge": response.json()['challenge'], "otp": totp_secret}
+                response = self._session.post('https://api.myplant.io/auth/mfa/totp/confirmation', data=json.dumps(body_mfa), headers=headers)
+
                 if response.status_code == 200:
                     logging.debug(f'login {self.deBase64(self._name)} successful.')
                     self._token = response.json()['token']
@@ -323,6 +359,7 @@ class MyPlant:
                 logging.error(f'Login {self.deBase64(self._name)} failed after 3 attempts.')
                 self.del_Credentials()
                 raise Exception(f"Login Failed, invalid Credentials ?")
+
 
     def logout(self):
         """Logout from Myplant and release self._session"""
