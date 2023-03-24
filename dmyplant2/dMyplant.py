@@ -329,6 +329,7 @@ class MyPlant:
 # #################################################################
     def login(self):
         """Login to MyPlant"""
+
         if self._session is None:
             logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
             self._session = requests.session()
@@ -385,13 +386,14 @@ class MyPlant:
 ############# CHATGPT variante
     def fetchdata(self, url):
         """login and return data based on url"""
-        self.login()
+        #self.login()
         logging.debug(f'url: {url}')
 
         retries = 0
         while retries < 3:
             try:
-                response = self._session.get(burl + url, timeout=30)
+                headers = {'x-seshat-token': self.app_token}
+                response = self._session.get(burl + url, headers=headers, timeout=30)
                 response.raise_for_status()
 
                 logging.debug(f'fetchdata: download successful')
@@ -399,8 +401,8 @@ class MyPlant:
                 return res
             except requests.exceptions.RequestException as e:
                 logging.error(f'Request failed: {e}')
-                if isinstance(e, requests.exceptions.Timeout):
-                    self.login() # login again if a timeout occurred
+                #if isinstance(e, requests.exceptions.Timeout):
+                #    self.login() # login again if a timeout occurred
                 retries += 1
                 time.sleep(5)
         logging.error(f'Failed to fetch data from {url} after 3 attempts')
