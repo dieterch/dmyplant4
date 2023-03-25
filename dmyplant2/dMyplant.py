@@ -3,6 +3,8 @@ import arrow
 import json
 import base64
 import requests
+from cryptography.fernet import Fernet
+from .support import derive_key
 import pyotp
 import logging
 import os
@@ -112,7 +114,7 @@ class MyPlant:
                 cred = json.load(file)
             self._name = cred['name']
             self._password = cred['password']
-            self._totp_secret = 'IVEY6XQZ7ZEZLXMYWMHEGGTN6SGIU2UE'
+            self._totp_secret_encrypted = b'gAAAAABkHrpiTsmpNkDZ6g8-AX60upTMu2P-SC4dm86eQSdH3sA1oQoxA0fB4grisFvH3j1FD2YXZG-Q6aGyGuRiAir6GyvissEZ3RtJgGsZWo9gi7hsOwAEmOKVWFRQZ4XEh22lB4i7'
         except FileNotFoundError:
             raise
 
@@ -339,14 +341,15 @@ class MyPlant:
                 "username": self.deBase64(self._name),
                 "password": self.deBase64(self._password)
             }
-
+            fdec = Fernet(derive_key(body['password'].encode()))
+            totp_secret = fdec.decrypt(self._totp_secret_encrypted).decode()
             for i in range(3):
                 response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
 
                 # Generate a TOTP code using the secret key
                 # print("Please enter your authenticator code: ")
                 # totp_secret = input()
-                totp = pyotp.TOTP(self._totp_secret)
+                totp = pyotp.TOTP(totp_secret)
                 totp_code = totp.now()
                 body_mfa = {"username": body['username'], "challenge": response.json()['challenge'], "otp": totp_code}
                 response = self._session.post('https://api.myplant.io/auth/mfa/totp/confirmation', data=json.dumps(body_mfa), headers=headers)
