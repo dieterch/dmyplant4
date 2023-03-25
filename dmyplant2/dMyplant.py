@@ -3,6 +3,7 @@ import arrow
 import json
 import base64
 import requests
+import pyotp
 import logging
 import os
 import sys
@@ -111,6 +112,7 @@ class MyPlant:
                 cred = json.load(file)
             self._name = cred['name']
             self._password = cred['password']
+            self._totp_secret = 'IVEY6XQZ7ZEZLXMYWMHEGGTN6SGIU2UE'
         except FileNotFoundError:
             raise
 
@@ -341,10 +343,12 @@ class MyPlant:
             for i in range(3):
                 response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
 
-                # Generate a TOTP code using the secret key from your Authenticator app
-                print("Please enter your authenticator code: ")
-                totp_secret = input()
-                body_mfa = {"username": body['username'], "challenge": response.json()['challenge'], "otp": totp_secret}
+                # Generate a TOTP code using the secret key
+                # print("Please enter your authenticator code: ")
+                # totp_secret = input()
+                totp = pyotp.TOTP(self._totp_secret)
+                totp_code = totp.now()
+                body_mfa = {"username": body['username'], "challenge": response.json()['challenge'], "otp": totp_code}
                 response = self._session.post('https://api.myplant.io/auth/mfa/totp/confirmation', data=json.dumps(body_mfa), headers=headers)
 
                 if response.status_code == 200:
