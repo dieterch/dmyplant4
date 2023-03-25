@@ -1,7 +1,8 @@
 ﻿from sqlite3 import Timestamp
 import arrow
 import json
-import base64
+import yaml
+#import base64
 import requests
 from cryptography.fernet import Fernet
 from .support import derive_key
@@ -110,11 +111,13 @@ class MyPlant:
         self._caching = caching
         # load and manage credentials from hidden file
         try:
-            with open("./data/.credentials", "r", encoding='utf-8-sig') as file:
-                cred = json.load(file)
+            #with open("./data/.credentials", "rb", encoding='utf-8-sig') as file:
+            with open("./data/.credentials", "rb") as file:
+                cred = yaml.safe_load(file.read())
+                #cred = json.load(file)
             self._name = cred['name']
             self._password = cred['password']
-            self._totp_secret_encrypted = b'gAAAAABkHrpiTsmpNkDZ6g8-AX60upTMu2P-SC4dm86eQSdH3sA1oQoxA0fB4grisFvH3j1FD2YXZG-Q6aGyGuRiAir6GyvissEZ3RtJgGsZWo9gi7hsOwAEmOKVWFRQZ4XEh22lB4i7'
+            self._totp_secret = cred["totp_secret"]
         except FileNotFoundError:
             raise
 
@@ -184,8 +187,8 @@ class MyPlant:
         dat = {a[0]: [a[1], a[2]] for a in data_req.values}
         return dat
 
-    def deBase64(self, text):
-        return base64.b64decode(text).decode('utf-8')
+    #def deBase64(self, text):
+    #    return base64.b64decode(text).decode('utf-8')
 
     def gdi(self, ds, sub_key, data_item_name):
         """Unpack value from Myplant Json datastructure based on key & DataItemName"""
@@ -261,43 +264,8 @@ class MyPlant:
 
     @property
     def username(self):
-        return self.deBase64(self._name)
-
-    # def login(self):
-    #     """Login to MyPlant"""
-    #     if self._session is None:
-    #         logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
-    #         self._session = requests.session()
-    #         headers = {'Content-Type': 'application/json', }
-    #         body = {
-    #             "username": self.deBase64(self._name),
-    #             "password": self.deBase64(self._password)
-    #         }
-    #         loop = 1
-    #         try:
-    #             while loop < 3:
-    #                 response = self._session.post(burl + "/auth",
-    #                                               data=json.dumps(body), headers=headers)
-    #                 if response.status_code == 200:
-    #                     logging.debug(f'login {self.deBase64(self._name)} successful.')
-    #                     #self.r = response.json()
-    #                     self._token = response.json()['token']
-    #                     self._appuser_token = self._token
-    #                     break
-    #                 else:
-    #                     logging.error(
-    #                         f'login failed with response code {response.status_code}')
-    #                 loop += 1
-    #                 logging.error(f'Myplant login attempt #{loop}')
-    #                 time.sleep(1)
-    #             if loop >= 3:
-    #                 logging.error(f'Login {self.deBase64(self._name)} failed')
-    #                 raise Exception(
-    #                     f'Login {self.deBase64(self._name)} failed')
-                    
-    #         except:
-    #             self.del_Credentials()
-    #             raise Exception("Login Failed, invalid Credentials ?")
+        return self._name
+        #return self.deBase64(self._name)
 
 # # CHATGPT verbesserungen :
 # #################################################################
@@ -334,15 +302,21 @@ class MyPlant:
         """Login to MyPlant"""
 
         if self._session is None:
-            logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
+            #logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
+            logging.debug(f"SSO {self._name} MyPlant login")
             self._session = requests.session()
             headers = {'Content-Type': 'application/json', }
+            # body = {
+            #     "username": self.deBase64(self._name),
+            #     "password": self.deBase64(self._password)
+            # }
             body = {
-                "username": self.deBase64(self._name),
-                "password": self.deBase64(self._password)
+                "username": self._name,
+                "password": self._password
             }
-            fdec = Fernet(derive_key(body['password'].encode()))
-            totp_secret = fdec.decrypt(self._totp_secret_encrypted).decode()
+            #fdec = Fernet(derive_key(body['password'].encode()))
+            #totp_secret = fdec.decrypt(self._totp_secret_encrypted).decode()
+            totp_secret = self._totp_secret
             for i in range(3):
                 response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
 
@@ -355,7 +329,8 @@ class MyPlant:
                 response = self._session.post('https://api.myplant.io/auth/mfa/totp/confirmation', data=json.dumps(body_mfa), headers=headers)
 
                 if response.status_code == 200:
-                    logging.debug(f'login {self.deBase64(self._name)} successful.')
+                    #logging.debug(f'login {self.deBase64(self._name)} successful.')
+                    logging.debug(f'login {self._name} successful.')
                     self._token = response.json()['token']
                     self._appuser_token = self._token
                     break
@@ -363,7 +338,8 @@ class MyPlant:
                     logging.error(f'Myplant login attempt #{i + 1} failed with response code {response.status_code}')
                     time.sleep(1)
             else:
-                logging.error(f'Login {self.deBase64(self._name)} failed after 3 attempts.')
+                #logging.error(f'Login {self.deBase64(self._name)} failed after 3 attempts.')
+                logging.error(f'Login {self._name} failed after 3 attempts.')
                 self.del_Credentials()
                 raise Exception(f"Login Failed, invalid Credentials ?")
 

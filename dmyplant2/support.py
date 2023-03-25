@@ -6,7 +6,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.fernet import Fernet
 from datetime import datetime as dt
 #import sys
-import json
+#import json
+import yaml
 import os
 import logging
 
@@ -55,31 +56,42 @@ def forceUpdate(last):
 
 def getCredentials():
     print("Please enter your myPlant login: ")
-    print('User: ', end='')
+    print('User: ')
     name = input()
+    print('Password: ')
     password = getpass.getpass()
+    print('TOTP Secret: ')
+    totp_secret = getpass.getpass()
+    
     logging.info('New Credentials saved')
     return {
-        "name": base64.b64encode(name.encode('utf-8')).decode('utf-8'),
-        "password": base64.b64encode(password.encode("utf-8")).decode('utf-8'),
+        "name": name,
+        "password": password,
+        "totp_secret": totp_secret,
         "lastupdate": jetzt()
     }
 
+def encryptCredentials():
+    pass
+
+def decryptCredentials():
+    pass
 
 def saveCredentials(cred):
     try:
-        with open("./data/.credentials", "w") as file:
-            json.dump(cred, file)
+        with open("./data/.credentials", "wb") as file:
+            file.write(yaml.dump(cred).encode('utf-8'))
     except FileNotFoundError:
         raise
-
 
 def cred():
     if not os.path.exists(os.getcwd() + '/data'):
         os.makedirs(os.getcwd() + '/data')
     if os.path.exists(os.getcwd() + '/data/.credentials'):
-        with open(os.getcwd() + "/data/.credentials", "r", encoding='utf-8-sig') as file:
-            cred = json.load(file)
+        #with open(os.getcwd() + "/data/.credentials", "rb", encoding='utf-8-sig') as file:
+        with open(os.getcwd() + "/data/.credentials", "rb") as file:
+            cred = yaml.safe_load(file.read())
+            #cred = json.load(file)
         if forceUpdate(cred['lastupdate']):
             cred = getCredentials()
             saveCredentials(cred)
