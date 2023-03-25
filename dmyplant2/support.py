@@ -57,8 +57,8 @@ def getCredentials():
 Please enter your myPlant login: 
 --------------------------------
     """)
-    print('User: ', end='')
-    name = input()
+    #print('User: ', end='')
+    name = input('User: ')
     password = getpass.getpass(prompt='Password: ')
     totp_secret = getpass.getpass(prompt='TOTP Secret: ')
     
