@@ -5,8 +5,6 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 from cryptography.fernet import Fernet
 from datetime import datetime as dt
-#import sys
-#import json
 import yaml
 import os
 import logging
@@ -55,13 +53,14 @@ def forceUpdate(last):
 
 
 def getCredentials():
-    print("Please enter your myPlant login: ")
-    print('User: ')
+    print("""
+Please enter your myPlant login: 
+--------------------------------
+    """)
+    print('User: ', end='')
     name = input()
-    print('Password: ')
-    password = getpass.getpass()
-    print('TOTP Secret: ')
-    totp_secret = getpass.getpass()
+    password = getpass.getpass(prompt='Password: ')
+    totp_secret = getpass.getpass(prompt='TOTP Secret: ')
     
     logging.info('New Credentials saved')
     return {

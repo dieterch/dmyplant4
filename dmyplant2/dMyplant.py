@@ -111,13 +111,15 @@ class MyPlant:
         self._caching = caching
         # load and manage credentials from hidden file
         try:
-            #with open("./data/.credentials", "rb", encoding='utf-8-sig') as file:
             with open("./data/.credentials", "rb") as file:
                 cred = yaml.safe_load(file.read())
-                #cred = json.load(file)
-            self._name = cred['name']
-            self._password = cred['password']
-            self._totp_secret = cred["totp_secret"]
+            try:
+                self._name = cred['name']
+                self._password = cred['password']
+                self._totp_secret = cred["totp_secret"]
+            except Exception as e:
+                self.del_Credentials()
+                raise e
         except FileNotFoundError:
             raise
 
@@ -148,14 +150,6 @@ class MyPlant:
         if cls._dataitems.empty:
             cls.load_dataitems()
         return cls._dataitems
-
-    # @classmethod
-    # def get_itemIDs(cls,dat=['Count_OpHour']):
-    #     ret = {}
-    #     for item in dat:
-    #         res = cls.lookup_dataitems(lookup=item).to_dict('records')[0]
-    #         ret.update({ res.get('id',None) : [res.get('name',None),res.get('unit', '')] })
-    #     return ret
     
     @classmethod
     def lookup_dataitems(cls,lookup, exclude=''):
@@ -267,34 +261,6 @@ class MyPlant:
         return self._name
         #return self.deBase64(self._name)
 
-# # CHATGPT verbesserungen :
-# #################################################################
-#     def login(self):
-#         """Login to MyPlant"""
-#         if self._session is None:
-#             logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
-#             self._session = requests.session()
-#             headers = {'Content-Type': 'application/json', }
-#             body = {
-#                 "username": self.deBase64(self._name),
-#                 "password": self.deBase64(self._password)
-#             }
-
-#             for i in range(3):
-#                 response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
-
-#                 if response.status_code == 200:
-#                     logging.debug(f'login {self.deBase64(self._name)} successful.')
-#                     self._token = response.json()['token']
-#                     self._appuser_token = self._token
-#                     break
-#                 else:
-#                     logging.error(f'Myplant login attempt #{i + 1} failed with response code {response.status_code}')
-#                     time.sleep(1)
-#             else:
-#                 logging.error(f'Login {self.deBase64(self._name)} failed after 3 attempts.')
-#                 self.del_Credentials()
-#                 raise Exception(f"Login Failed, invalid Credentials ?")
 
 # # with totp MFA - code is failing to authorize currently  :
 # #################################################################
@@ -306,10 +272,6 @@ class MyPlant:
             logging.debug(f"SSO {self._name} MyPlant login")
             self._session = requests.session()
             headers = {'Content-Type': 'application/json', }
-            # body = {
-            #     "username": self.deBase64(self._name),
-            #     "password": self.deBase64(self._password)
-            # }
             body = {
                 "username": self._name,
                 "password": self._password
@@ -319,17 +281,12 @@ class MyPlant:
             totp_secret = self._totp_secret
             for i in range(3):
                 response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
-
-                # Generate a TOTP code using the secret key
-                # print("Please enter your authenticator code: ")
-                # totp_secret = input()
                 totp = pyotp.TOTP(totp_secret)
                 totp_code = totp.now()
                 body_mfa = {"username": body['username'], "challenge": response.json()['challenge'], "otp": totp_code}
                 response = self._session.post('https://api.myplant.io/auth/mfa/totp/confirmation', data=json.dumps(body_mfa), headers=headers)
 
                 if response.status_code == 200:
-                    #logging.debug(f'login {self.deBase64(self._name)} successful.')
                     logging.debug(f'login {self._name} successful.')
                     self._token = response.json()['token']
                     self._appuser_token = self._token
