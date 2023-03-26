@@ -106,7 +106,7 @@ def readCredentials():
 def cred():
     if not os.path.exists(os.getcwd() + '/data'):
         os.makedirs(os.getcwd() + '/data')
-    if os.path.exists(os.getcwd() + '/data/.credentials'):
+    if (os.path.exists(os.getcwd() + '/data/.credentials') and os.path.exists(os.getcwd() + '/.salt')):
         cred = readCredentials()
     else:
         derive_key(smkey, generate_salt=True) #(re)initialize cryptography if no file found
