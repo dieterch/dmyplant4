@@ -140,5 +140,6 @@ dmypy.json
 /data
 ~*
 .credentials
+.salt
 Examples/data
 Installed_base.pkl

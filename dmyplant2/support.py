@@ -10,6 +10,7 @@ import os
 import logging
 
 period = 31*24*60*60
+smkey = b'LiMibInGY08vaTJ7Cr7S4SoCw7FJ-ZlB2_0vdHtpu6k='
 
 def derive_key(passphrase, generate_salt=False):
     salt = SaltManager(generate_salt)
@@ -70,30 +71,44 @@ Please enter your myPlant login:
         "lastupdate": jetzt()
     }
 
-def encryptCredentials():
-    pass
+def encryptCredentials(cred):
+    fenc = Fernet(derive_key(smkey))
+    cred_encrypted = fenc.encrypt(yaml.dump(cred).encode())
+    return cred_encrypted
 
-def decryptCredentials():
-    pass
+def decryptCredentials(cred):
+    fdec = Fernet(derive_key(smkey))
+    cred_decrypted = yaml.safe_load(fdec.decrypt(cred).decode())
+    return cred_decrypted
 
 def saveCredentials(cred):
     try:
+        cred_encrypted = encryptCredentials(cred)
         with open("./data/.credentials", "wb") as file:
-            file.write(yaml.dump(cred).encode('utf-8'))
+            #file.write(yaml.dump(cred_encrypted).encode('utf-8'))
+            file.write(cred_encrypted)
     except FileNotFoundError:
+        raise
+
+def readCredentials():
+    try:
+        with open(os.getcwd() + "/data/.credentials", "rb") as file:
+            #cred_encrypted = yaml.safe_load(file.read())
+            cred_encrypted = file.read()
+            cred = decryptCredentials(cred_encrypted)
+            if forceUpdate(cred['lastupdate']):
+                cred = getCredentials()
+                saveCredentials(cred)
+            return cred
+    except Exception:
         raise
 
 def cred():
     if not os.path.exists(os.getcwd() + '/data'):
         os.makedirs(os.getcwd() + '/data')
     if os.path.exists(os.getcwd() + '/data/.credentials'):
-        #with open(os.getcwd() + "/data/.credentials", "rb", encoding='utf-8-sig') as file:
-        with open(os.getcwd() + "/data/.credentials", "rb") as file:
-            cred = yaml.safe_load(file.read())
-            #cred = json.load(file)
-        if forceUpdate(cred['lastupdate']):
-            cred = getCredentials()
-            saveCredentials(cred)
+        cred = readCredentials()
     else:
+        derive_key(smkey, generate_salt=True) #(re)initialize cryptography if no file found
         cred = getCredentials()
         saveCredentials(cred)

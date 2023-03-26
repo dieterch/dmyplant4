@@ -5,7 +5,7 @@ import yaml
 #import base64
 import requests
 from cryptography.fernet import Fernet
-from .support import derive_key
+from .support import readCredentials
 import pyotp
 import logging
 import os
@@ -93,8 +93,8 @@ class MyPlantClientException(Exception):
 class MyPlant:
 
     #Class Variables
-    _name = ''
-    _password = ''
+    #_name = ''
+    #_password = ''
     _session = None
     _caching = 0
 
@@ -111,17 +111,10 @@ class MyPlant:
         self._caching = caching
         # load and manage credentials from hidden file
         try:
-            with open("./data/.credentials", "rb") as file:
-                cred = yaml.safe_load(file.read())
-            try:
-                self._name = cred['name']
-                self._password = cred['password']
-                self._totp_secret = cred["totp_secret"]
-            except Exception as e:
-                self.del_Credentials()
-                raise e
-        except FileNotFoundError:
-            raise
+            self._cred = readCredentials()
+        except Exception as e:
+            self.del_Credentials()
+            raise e
 
         self._appuser_token = None
         self._token = None
@@ -258,36 +251,30 @@ class MyPlant:
 
     @property
     def username(self):
-        return self._name
-        #return self.deBase64(self._name)
+        return self._cred['name']
 
-
-# # with totp MFA - code is failing to authorize currently  :
-# #################################################################
     def login(self):
         """Login to MyPlant"""
 
         if self._session is None:
-            #logging.debug(f"SSO {self.deBase64(self._name)} MyPlant login")
-            logging.debug(f"SSO {self._name} MyPlant login")
+            logging.debug(f"SSO {self._cred['name']} MyPlant login")
             self._session = requests.session()
             headers = {'Content-Type': 'application/json', }
             body = {
-                "username": self._name,
-                "password": self._password
+                "username": self._cred['name'],
+                "password": self._cred['password']
             }
-            #fdec = Fernet(derive_key(body['password'].encode()))
-            #totp_secret = fdec.decrypt(self._totp_secret_encrypted).decode()
-            totp_secret = self._totp_secret
+            totp_secret = self._cred['totp_secret']
             for i in range(3):
                 response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
+                # generate OTP
                 totp = pyotp.TOTP(totp_secret)
                 totp_code = totp.now()
                 body_mfa = {"username": body['username'], "challenge": response.json()['challenge'], "otp": totp_code}
                 response = self._session.post('https://api.myplant.io/auth/mfa/totp/confirmation', data=json.dumps(body_mfa), headers=headers)
 
                 if response.status_code == 200:
-                    logging.debug(f'login {self._name} successful.')
+                    logging.debug(f"login {self._cred['name']} successful.")
                     self._token = response.json()['token']
                     self._appuser_token = self._token
                     break
@@ -295,8 +282,7 @@ class MyPlant:
                     logging.error(f'Myplant login attempt #{i + 1} failed with response code {response.status_code}')
                     time.sleep(1)
             else:
-                #logging.error(f'Login {self.deBase64(self._name)} failed after 3 attempts.')
-                logging.error(f'Login {self._name} failed after 3 attempts.')
+                logging.error(f"Login {self._cred['name']} failed after 3 attempts.")
                 self.del_Credentials()
                 raise Exception(f"Login Failed, invalid Credentials ?")
 
