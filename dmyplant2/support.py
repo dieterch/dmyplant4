@@ -58,18 +58,22 @@ def getCredentials():
 Please enter your myPlant login: 
 --------------------------------
     """)
-    #print('User: ', end='')
-    name = input('User: ')
-    password = getpass.getpass(prompt='Password: ')
-    totp_secret = getpass.getpass(prompt='TOTP Secret: ')
-    
-    logging.info('New Credentials saved')
-    return {
-        "name": name,
-        "password": password,
-        "totp_secret": totp_secret,
-        "lastupdate": jetzt()
-    }
+    try:
+        name = input('User: ')
+        password = getpass.getpass(prompt='Password: ')
+        totp_secret = getpass.getpass(prompt='TOTP Secret: ')
+        
+        logging.info('New Credentials saved')
+        return {
+            "name": name,
+            "password": password,
+            "totp_secret": totp_secret,
+            "lastupdate": jetzt()
+        }
+    except Exception as e:
+        #print(e)
+        print("Please Login with 'Login.ipynb' to authenticate in myplant.")
+        raise
 
 def encryptCredentials(cred):
     fenc = Fernet(derive_key(smkey))
