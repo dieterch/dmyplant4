@@ -225,7 +225,7 @@ class Tecjet_Collector(Start_Data_Collector):
         super().__init__(self.phases)
         self._e = engine
         self._vset += ['TecJet_Lambda1','TecJet_GasTemp1','TecJet_GasPress1','TecJet_GasDiffPress','TecJet_ValvePos1']
-        self._content = ['TJ_GasDiffPressMin','TJ_GasPress1_at_Min','TJ_GasTemp1_at_Min','TJ_Pos_at_Min']
+        self._content = ['TJ_GasDiffPressMin','TJ_GasPress1_at_Min','TJ_GasTemp1_at_Min','TJ_Pos_at_Min','TJ_Lambda_min','TJ_Lambda_max']
         # define table results:
         results['run2_content']['tecjet'] = ['no'] + self._content
 
@@ -246,6 +246,8 @@ class Tecjet_Collector(Start_Data_Collector):
                         'TJ_GasTemp1_at_Min': t_at_dpmin,
                         'TJ_Pos_at_Min': pos_at_dpmin
                     }
+            res['TJ_Lambda_min'] = tjdata['TecJet_Lambda1'].min()
+            res['TJ_Lambda_max'] = tjdata['TecJet_Lambda1'].max()
         sno = startversuch['no']
         results['starts'][sno].update(res)
         return results  
