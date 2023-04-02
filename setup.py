@@ -36,7 +36,9 @@ SETUP_ARGS = dict(
         'scipy>=1.5.2',
         'tqdm>=4.62.3',
         'bokeh>=2.4.2',
-        'Ipython>=8.0.1'
+        'Ipython>=8.0.1',
+        'pyotp>=2.8.0',
+        'tabulate>=0.9.0'
     ],
 )
 
