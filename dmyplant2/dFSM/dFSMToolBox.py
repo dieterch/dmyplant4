@@ -300,7 +300,7 @@ class Sync_Current_Collector(Start_Data_Collector):
 ####################################
 class Oil_Start_Collector(Start_Data_Collector):
     def __init__(self, results, engine):
-        self.phases = ['degasing','starter','speedup','idle','synchronize']
+        self.phases = ['oilfilling','starter','speedup','idle','synchronize']
         super().__init__(self.phases)
         self._e = engine
         self._speed_nominal = self._e.Speed_nominal
