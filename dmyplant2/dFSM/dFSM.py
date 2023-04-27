@@ -16,7 +16,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from dmyplant2.dEngine import Engine
-from .dFSMToolBox import Target_load_Collector, Exhaust_temp_Collector, Tecjet_Collector, Sync_Current_Collector, Oil_Start_Collector, load_data, msg_smalltxt
+from .dFSMToolBox import Target_load_Collector, Exhaust_temp_Collector, Tecjet_Collector, Sync_Current_Collector, Oil_Start_Collector, Stop_Collector, load_data, msg_smalltxt
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -269,6 +269,7 @@ class startstopFSM(FSM):
     # useful abbrevations
     # run2filter_content = ['no','success','mode','oilfilling','degasing','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetload','PCDifPress_min','ramprate','maxload','targetoperation','rampdown','coolrun','runout','A', 'W']
     run2filter_content = ['no','success','mode','oilfilling','degasing','starter','speedup','idle','synchronize','loadramp','cumstarttime','targetoperation','rampdown','coolrun','runout','A', 'W']
+    run4filter_content = ['no','success','mode','Stop_Overspeed','Stop_Throttle','Stop_PVKDifPress','coolrun','runout','A', 'W']
     vertical_lines_times = ['oilfilling','degasing','starter','speedup','idle','synchronize','loadramp','targetoperation','rampdown','coolrun','runout']
     start_timing_states =  ['oilfilling','degasing','starter','speedup','idle','synchronize','loadramp']
     
@@ -540,6 +541,9 @@ class FSMOperator:
             }],
             'run2_content': {
                 'startstop': startstopFSM.run2filter_content
+            },
+                'run4_content': {
+                'startstop': startstopFSM.run4filter_content
             },
             'serviceselectortiming':[],
             'oilpumptiming':[],
@@ -982,13 +986,15 @@ class FSMOperator:
 ####################################
 
     def run4_collectors_setup(self):
-        pass
+        self.stop_collector = Stop_Collector(self.results, self._e)
         
     def run4_collectors_register(self, startversuch):
         vset = []; tfrom=None; tto=None
+        vset, tfrom, tto = self.stop_collector.register(startversuch, vset, tfrom, tto)
         return vset, tfrom, tto 
 
     def run4_collectors_collect(self, startversuch, results, data):
+        results = self.stop_collector.collect(startversuch, results, data)
         return results
 
     def run4(self, silent=False, debug=False, p_refresh=False):

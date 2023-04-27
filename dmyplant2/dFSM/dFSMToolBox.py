@@ -8,7 +8,7 @@ from .dFSMData import load_data
 ####################################################
 ### generic Data Collector base class 
 ####################################################
-class Start_Data_Collector:
+class Data_Collector:
     def __init__(self, phases):
         self._vset = []
         self._phases = phases
@@ -70,10 +70,11 @@ class Start_Data_Collector:
             tto = self.check_to(tto)
         return vset, tfrom, tto
 
+# RUN2 Results
 ####################################################
 ### calculate loadramp, Targetload, Maxoad, ramprate  
 ####################################################
-class Target_load_Collector(Start_Data_Collector):
+class Target_load_Collector(Data_Collector):
     def __init__(self, results, engine, period_factor=3, helplinefactor=0.8):
         self.name = 'startstop'
 
@@ -142,7 +143,7 @@ class Target_load_Collector(Start_Data_Collector):
 ####################################
 ### collect Exhaust Temperature Data
 ####################################
-class Exhaust_temp_Collector(Start_Data_Collector):
+class Exhaust_temp_Collector(Data_Collector):
     def __init__(self, results, engine):
         self.name = 'exhaust'
 
@@ -219,7 +220,7 @@ class Exhaust_temp_Collector(Start_Data_Collector):
 ####################################
 ### collect Tecjet Data
 ####################################
-class Tecjet_Collector(Start_Data_Collector):
+class Tecjet_Collector(Data_Collector):
     def __init__(self, results, engine):
         self.phases = ['loadramp']
         super().__init__(self.phases)
@@ -255,7 +256,7 @@ class Tecjet_Collector(Start_Data_Collector):
 ####################################
 ### collect Synchronization Data
 ####################################
-class Sync_Current_Collector(Start_Data_Collector):
+class Sync_Current_Collector(Data_Collector):
     def __init__(self, results, engine):
         self.phases = ['idle','synchronize']
         super().__init__(self.phases)
@@ -298,7 +299,7 @@ class Sync_Current_Collector(Start_Data_Collector):
 ####################################
 ### collect Oil Start Data
 ####################################
-class Oil_Start_Collector(Start_Data_Collector):
+class Oil_Start_Collector(Data_Collector):
     def __init__(self, results, engine):
         self.phases = ['oilfilling','starter','speedup','idle','synchronize']
         super().__init__(self.phases)
@@ -317,6 +318,32 @@ class Oil_Start_Collector(Start_Data_Collector):
             res['PressOilMax'] = oildata['Hyd_PressOil'].max()
             res['PressOilDifMax'] = oildata['Hyd_PressOilDif'].max()
             res['TempOil_min'] = oildata['Hyd_TempOil'].min()
+        sno = startversuch['no']
+        results['starts'][sno].update(res)
+        return results  
+
+# RUN4 Results
+####################################
+### collect Stop Data
+####################################
+class Stop_Collector(Data_Collector):
+    def __init__(self, results, engine):
+        self.phases = ['coolrun']
+        super().__init__(self.phases)
+        self._e = engine
+        self._speed_nominal = self._e.Speed_nominal
+        self._vset += ['Various_Values_SpeedAct','Various_Values_PosThrottle','Aux_PreChambDifPress']
+        self._content = ['Stop_Overspeed','Stop_Throttle','Stop_PVKDifPress']
+        # define table results:
+        results['run4_content']['stop'] = ['no'] + self._content
+
+    def collect(self, startversuch, results, data):
+        stopdata = self.cut_data(startversuch, data, self._phases) 
+        res = { k:np.nan for k in self._content } # initialize results
+        if not stopdata.empty:
+            res['Stop_Overspeed'] = stopdata['Various_Values_SpeedAct'].max()
+            res['Stop_Throttle'] = stopdata['Various_Values_PosThrottle'].mean()
+            res['Stop_PVKDifPress'] = stopdata['Aux_PreChambDifPress'].mean()
         sno = startversuch['no']
         results['starts'][sno].update(res)
         return results  
