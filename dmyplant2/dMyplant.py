@@ -108,7 +108,7 @@ class MyPlant:
 
         self._data_basedir = os.getcwd() + f'/data'
 
-        self._caching = caching
+        type(self)._caching = caching
         # load and manage credentials from hidden file
         try:
             self._cred = readCredentials()
@@ -121,7 +121,7 @@ class MyPlant:
         #self.login()
         
         #if not os.path.isfile('data/dataitems.csv'):
-        if not os.path.isfile(self._dfn):
+        if not os.path.isfile(type(self)._dfn):
             self.create_request_csv()
 
         # store dataitems in class variable at start
@@ -247,7 +247,7 @@ class MyPlant:
     @property
     def caching(self):
         """the current cache time"""
-        return self._caching
+        return type(self)._caching
 
     @property
     def username(self):
@@ -256,9 +256,9 @@ class MyPlant:
     def login(self):
         """Login to MyPlant"""
 
-        if self._session is None:
+        if type(self)._session is None:
             logging.debug(f"SSO {self._cred['name']} MyPlant login")
-            self._session = requests.session()
+            type(self)._session = requests.session()
             headers = {'Content-Type': 'application/json', }
             body = {
                 "username": self._cred['name'],
@@ -266,12 +266,12 @@ class MyPlant:
             }
             totp_secret = self._cred['totp_secret']
             for i in range(3):
-                response = self._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
+                response = type(self)._session.post(burl + "/auth", data=json.dumps(body), headers=headers)
                 # generate OTP
                 totp = pyotp.TOTP(totp_secret)
                 totp_code = totp.now()
                 body_mfa = {"username": body['username'], "challenge": response.json()['challenge'], "otp": totp_code}
-                response = self._session.post('https://api.myplant.io/auth/mfa/totp/confirmation', data=json.dumps(body_mfa), headers=headers)
+                response = type(self)._session.post('https://api.myplant.io/auth/mfa/totp/confirmation', data=json.dumps(body_mfa), headers=headers)
 
                 if response.status_code == 200:
                     logging.debug(f"login {self._cred['name']} successful.")
@@ -289,15 +289,15 @@ class MyPlant:
 
     def logout(self):
         """Logout from Myplant and release self._session"""
-        if self._session != None:
-            self._session.close()
-            self._session = None
+        if type(self)._session != None:
+            type(self)._session.close()
+            type(self)._session = None
 
     # def fetchdata(self, url):
     #     """login and return data based on url"""
     #     self.login()
     #     logging.debug(f'url: {url}')
-    #     response = self._session.get(burl + url)
+    #     response = type(self)._session.get(burl + url)
 
     #     if response.status_code == 200:
     #         logging.debug(f'fetchdata: download successful')
@@ -318,7 +318,7 @@ class MyPlant:
         while retries < 3:
             try:
                 headers = {'x-seshat-token': self.app_token}
-                response = self._session.get(burl + url, headers=headers, timeout=30)
+                response = type(self)._session.get(burl + url, headers=headers, timeout=30)
                 response.raise_for_status()
 
                 logging.debug(f'fetchdata: download successful')
@@ -602,7 +602,7 @@ class MyPlant:
         model=model.merge(dataitems_df[dataitems_df.lan=='en'], how='inner', left_on='name', right_on='dataitem')
         model=model.loc[:,['id', 'name', 'unit', 'myPlantName']]
         #model.to_csv('data/dataitems.csv', sep=';', index=False)
-        model.to_pickle(self._dfn)
+        model.to_pickle(type(self)._dfn)
 
     def _reshape_asset(self, rec):
         ret = dict()
